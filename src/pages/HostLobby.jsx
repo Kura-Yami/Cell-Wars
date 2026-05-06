@@ -10,6 +10,30 @@ import QRCodeDisplay from '@/components/game/QRCodeDisplay';
 import PlayerList from '@/components/game/PlayerList';
 import { createRoom, getRoomByCode, startGame } from '@/lib/gameRoomManager';
 
+function getConfiguredJoinOrigin(value) {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue) {
+    return '';
+  }
+
+  try {
+    return new URL(trimmedValue).origin;
+  } catch {
+    return trimmedValue.replace(/\/join.*$/, '').replace(/\/$/, '');
+  }
+}
+
+const configuredJoinOrigin = getConfiguredJoinOrigin(import.meta.env.VITE_JOIN_ORIGIN);
+const isLocalOrigin = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::|$)/.test(origin);
+const getJoinOrigin = () => {
+  if (!isLocalOrigin(window.location.origin)) {
+    return window.location.origin;
+  }
+
+  return configuredJoinOrigin || window.location.origin;
+};
+
 export default function HostLobby() {
   const navigate = useNavigate();
   const [hostName, setHostName] = useState('');
@@ -67,7 +91,9 @@ export default function HostLobby() {
     }
   };
 
-  const joinUrl = room ? `${window.location.origin}/join?code=${room.code}` : '';
+  const joinOrigin = getJoinOrigin();
+  const joinUrl = room ? `${joinOrigin}/join?code=${room.code}` : '';
+  const qrNeedsNetworkUrl = room && isLocalOrigin(joinOrigin);
 
   if (!room) {
     return (
@@ -137,6 +163,12 @@ export default function HostLobby() {
         <p className="text-xs text-muted-foreground font-body text-center">
           Share this code or QR with friends to join
         </p>
+
+        {qrNeedsNetworkUrl && (
+          <p className="max-w-sm rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800">
+            This QR uses localhost, which only works on this device. Open the app from Vite's Network URL or set VITE_JOIN_ORIGIN.
+          </p>
+        )}
 
         <PlayerList players={room.players || []} hostName={hostName} />
 

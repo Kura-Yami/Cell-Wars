@@ -1,0 +1,9 @@
+{
+  "name": "Cell Wars",
+  "short_name": "Cell Wars",
+  "description": "An immunology learning site with an interactive white blood cell game.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fb",
+  "theme_color": "#d3264d"
+}

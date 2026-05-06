@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { createId } from '@/lib/randomId'
 
 const MOCK_ROOMS_KEY = 'cell-wars:mock-rooms'
 const REQUEST_TIMEOUT_MS = 8000
@@ -50,14 +51,14 @@ function createMockGameRoom({ hostUserId, hostName }) {
   const rooms = readMockRooms()
 
   rooms[code] = {
-    id: crypto.randomUUID(),
+    id: createId(),
     code,
     is_local: true,
     status: 'lobby',
     host_user_id: hostUserId,
     players: [
       {
-        id: crypto.randomUUID(),
+        id: createId(),
         user_id: hostUserId,
         player_name: hostName || 'Host',
         score: 0,
@@ -85,7 +86,7 @@ function joinMockGameRoom({ code, userId, playerName }) {
   }
 
   room.players.push({
-    id: crypto.randomUUID(),
+    id: createId(),
     user_id: userId,
     player_name: playerName,
     score: 0,

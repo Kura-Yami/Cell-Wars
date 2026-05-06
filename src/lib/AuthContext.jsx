@@ -2,6 +2,16 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { signOut, supabase } from '@/api/supabaseClient';
 
 const AuthContext = createContext();
+const AUTH_TIMEOUT_MS = 4000;
+
+function withTimeout(request, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), AUTH_TIMEOUT_MS);
+  });
+
+  return Promise.race([request, timeout]).finally(() => clearTimeout(timeoutId));
+}
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -24,7 +34,10 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } = await withTimeout(
+        supabase.auth.getSession(),
+        'Auth check timed out'
+      );
 
       if (error) {
         throw error;
@@ -39,10 +52,6 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setIsAuthenticated(false);
       setAuthChecked(true);
-      setAuthError({
-        type: 'unknown',
-        message: error.message || 'Authentication check failed',
-      });
     } finally {
       setIsLoadingAuth(false);
     }

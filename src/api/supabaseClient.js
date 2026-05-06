@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { createId } from '@/lib/randomId'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -18,7 +19,7 @@ export const supabase =
 function createMockGuest(playerName) {
   return {
     user: {
-      id: crypto.randomUUID(),
+      id: createId(),
       is_anonymous: true,
       user_metadata: { player_name: playerName },
     },
