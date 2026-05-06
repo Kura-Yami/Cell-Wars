@@ -1,24 +1,52 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { createGameState, updateGameState, renderGame, getLeaderboard } from '@/lib/gameEngine';
+import {
+  createGameState,
+  getLeaderboard,
+  mapRoomPlayerToGamePlayer,
+  renderGame,
+  updateGameState,
+} from '@/lib/gameEngine';
+import { subscribeToRoomPlayers, updateRoomPlayerState } from '@/api/gameRooms';
 import Leaderboard from './Leaderboard';
 import ScoreDisplay from './ScoreDisplay';
 import Minimap from './Minimap';
 
-export default function GameCanvas({ playerName, players = [] }) {
+export default function GameCanvas({ playerName, players = [], roomId, playerId }) {
   const canvasRef = useRef(null);
   const gameStateRef = useRef(null);
   const mouseRef = useRef({ x: 0, y: 0 });
   const animFrameRef = useRef(null);
   const lastTimeRef = useRef(0);
+  const lastSyncRef = useRef(0);
   const [leaderboard, setLeaderboard] = useState([]);
   const [score, setScore] = useState(0);
   const [gameState, setGameState] = useState(null);
 
   // Initialize game state
   useEffect(() => {
-    gameStateRef.current = createGameState(playerName, players);
+    const existingPlayerSlots = roomId ? Array.from({ length: 3 }) : players;
+    gameStateRef.current = createGameState(playerName, existingPlayerSlots);
+    if (playerId) {
+      gameStateRef.current.player.id = playerId;
+    }
     setGameState(gameStateRef.current);
-  }, [playerName]);
+  }, [playerName, playerId, roomId]);
+
+  useEffect(() => {
+    if (!roomId || !playerId) return undefined;
+
+    return subscribeToRoomPlayers(roomId, (roomPlayers) => {
+      const state = gameStateRef.current;
+      if (!state) return;
+
+      state.otherPlayers = roomPlayers
+        .filter((player) => player.id !== playerId)
+        .map(mapRoomPlayerToGamePlayer);
+
+      setLeaderboard(getLeaderboard(state));
+      setGameState({ ...state });
+    });
+  }, [roomId, playerId]);
 
   // Handle mouse/touch movement
   const handleMouseMove = useCallback((e) => {
@@ -68,6 +96,20 @@ export default function GameCanvas({ playerName, players = [] }) {
           dt
         );
         renderGame(ctx, gameStateRef.current, canvas.width, canvas.height);
+
+        if (roomId && playerId && timestamp - lastSyncRef.current > 250) {
+          lastSyncRef.current = timestamp;
+          const { player } = gameStateRef.current;
+          updateRoomPlayerState(playerId, {
+            x: player.x,
+            y: player.y,
+            score: player.score,
+            size: player.radius,
+            is_eliminated: !player.alive,
+          }).catch((error) => {
+            console.error('Failed to sync player state', error);
+          });
+        }
 
         // Update React state periodically (not every frame for performance)
         leaderboardTimer += dt;

@@ -297,6 +297,53 @@ export async function getRoomPlayers(roomIdOrCode) {
   return data
 }
 
+export async function updateRoomPlayerState(playerId, playerState) {
+  if (!playerId) {
+    return null
+  }
+
+  if (!supabase) {
+    const rooms = readMockRooms()
+    const roomEntry = Object.entries(rooms).find(([, room]) =>
+      room.players?.some((player) => player.id === playerId)
+    )
+
+    if (!roomEntry) {
+      return null
+    }
+
+    const [code, room] = roomEntry
+    room.players = room.players.map((player) =>
+      player.id === playerId ? { ...player, ...playerState } : player
+    )
+    rooms[code] = room
+    writeMockRooms(rooms)
+    return room.players.find((player) => player.id === playerId)
+  }
+
+  const { data, error } = await withTimeout(
+    supabase
+      .from('room_players')
+      .update({
+        x: playerState.x,
+        y: playerState.y,
+        score: playerState.score,
+        size: playerState.size,
+        is_eliminated: playerState.is_eliminated,
+      })
+      .eq('id', playerId)
+      .select()
+      .single(),
+    'Supabase player state update timed out'
+  )
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 export async function startGameRoom(roomIdOrCode) {
   const rooms = readMockRooms()
   const normalizedCode = roomIdOrCode?.toUpperCase?.()
@@ -340,7 +387,21 @@ export function subscribeToRoomPlayers(roomId, onPlayersChange) {
     return () => {}
   }
 
-  // Connect lobby UI here. Supabase Realtime must be enabled for room_players.
+  let isActive = true
+  const refreshPlayers = () => {
+    getRoomPlayers(roomId)
+      .then((players) => {
+        if (isActive) {
+          onPlayersChange(players)
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to sync room players', error)
+      })
+  }
+
+  refreshPlayers()
+
   const channel = supabase
     .channel(`room_players:${roomId}`)
     .on(
@@ -351,13 +412,15 @@ export function subscribeToRoomPlayers(roomId, onPlayersChange) {
         table: 'room_players',
         filter: `room_id=eq.${roomId}`,
       },
-      () => {
-        getRoomPlayers(roomId).then(onPlayersChange)
-      }
+      refreshPlayers
     )
     .subscribe()
 
+  const pollInterval = setInterval(refreshPlayers, 1500)
+
   return () => {
+    isActive = false
+    clearInterval(pollInterval)
     supabase.removeChannel(channel)
   }
 }

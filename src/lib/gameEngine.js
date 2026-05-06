@@ -12,6 +12,7 @@ const VIRUS_COUNT = 6;
 const CANCER_COUNT = 3;
 const BASE_SPEED = 3.5;
 const MIN_PLAYER_RADIUS = 20;
+const PLAYER_COLORS = ['#4FC3F7', '#81C784', '#FFB74D', '#CE93D8', '#F06292', '#64B5F6'];
 
 // --- Entity Factories ---
 
@@ -92,7 +93,7 @@ export function createGameState(playerName, existingPlayers = []) {
       isAI: true,
       targetX: Math.random() * WORLD_SIZE,
       targetY: Math.random() * WORLD_SIZE,
-      color: ['#4FC3F7', '#81C784', '#FFB74D', '#CE93D8'][i],
+      color: PLAYER_COLORS[i],
     });
   }
 
@@ -117,6 +118,28 @@ export function createGameState(playerName, existingPlayers = []) {
     camera: { x: 0, y: 0 },
     time: 0,
     gameOver: false,
+  };
+}
+
+function getPlayerColor(id, index = 0) {
+  const hash = String(id || index)
+    .split('')
+    .reduce((total, char) => total + char.charCodeAt(0), 0);
+  return PLAYER_COLORS[hash % PLAYER_COLORS.length];
+}
+
+export function mapRoomPlayerToGamePlayer(player, index = 0) {
+  return {
+    id: player.id,
+    userId: player.user_id,
+    name: player.player_name || player.name || 'Player',
+    x: Number(player.x) || WORLD_SIZE / 2,
+    y: Number(player.y) || WORLD_SIZE / 2,
+    radius: Number(player.size) || MIN_PLAYER_RADIUS,
+    score: Number(player.score) || 0,
+    isAI: false,
+    isRemote: true,
+    color: getPlayerColor(player.id, index),
   };
 }
 
