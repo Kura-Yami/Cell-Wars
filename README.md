@@ -32,3 +32,5 @@ Recommended path:
 `vercel.json` and `netlify.toml` are included so routes like `/join`, `/host`, and `/play` load correctly when opened directly from a QR code.
 
 Solo play and the learning tabs work as a normal published site. Cross-device hosted rooms need Supabase anonymous auth and the tables from `supabase/schema.sql` so phones and computers can share room state.
+
+In Supabase, enable anonymous sign-ins for the project. The app uses anonymous Supabase users so students do not need accounts, but rooms are still shared through the database.

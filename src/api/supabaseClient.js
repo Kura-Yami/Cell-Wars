@@ -28,6 +28,16 @@ function createMockGuest(playerName) {
   }
 }
 
+function getAuthSetupMessage(error) {
+  const message = error?.message || 'Supabase guest auth failed'
+
+  if (message.toLowerCase().includes('anonymous sign-ins are disabled')) {
+    return 'Supabase anonymous sign-ins are disabled. Enable anonymous sign-ins in Supabase Auth, then create a new room.'
+  }
+
+  return message
+}
+
 function withTimeout(request, message) {
   let timeoutId
   const timeout = new Promise((_, reject) => {
@@ -78,8 +88,7 @@ export async function signInAsGuest(playerName) {
       isMock: false,
     }
   } catch (error) {
-    console.warn('Supabase guest auth failed. Falling back to a local guest.', error)
-    return createMockGuest(playerName)
+    throw new Error(getAuthSetupMessage(error))
   }
 }
 

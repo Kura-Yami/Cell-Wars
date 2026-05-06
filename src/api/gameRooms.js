@@ -98,6 +98,20 @@ function joinMockGameRoom({ code, userId, playerName }) {
   return room
 }
 
+function getSupabaseRoomErrorMessage(error, action) {
+  const message = error?.message || `Supabase ${action} failed`
+
+  if (message.includes('Could not find the table') || message.includes('schema cache')) {
+    return 'Supabase room tables are not ready. Run supabase/schema.sql in your Supabase SQL editor, then try again.'
+  }
+
+  if (message.includes('row-level security') || error?.code === '42501') {
+    return 'Supabase room permissions blocked this request. Check the RLS policies in supabase/schema.sql.'
+  }
+
+  return message
+}
+
 export async function createGameRoom({ hostUserId, hostName, preferLocal = false }) {
   if (preferLocal || !supabase) {
     return createMockGameRoom({ hostUserId, hostName })
@@ -139,8 +153,7 @@ export async function createGameRoom({ hostUserId, hostName, preferLocal = false
 
     return room
   } catch (error) {
-    console.warn('Supabase room creation failed. Falling back to a local room.', error)
-    return createMockGameRoom({ hostUserId, hostName })
+    throw new Error(getSupabaseRoomErrorMessage(error, 'room creation'))
   }
 }
 
@@ -222,12 +235,16 @@ export async function joinGameRoom({ code, userId, playerName, preferLocal = fal
         .from('game_rooms')
         .select('*')
         .eq('code', normalizedCode)
-        .single(),
+        .maybeSingle(),
       'Supabase join lookup timed out'
     )
 
     if (roomError) {
       throw roomError
+    }
+
+    if (!room) {
+      throw new Error(`No shared game room found for code ${normalizedCode}. Ask the host to create a new room after Supabase is configured.`)
     }
 
     if (room.status !== 'lobby') {
@@ -249,8 +266,7 @@ export async function joinGameRoom({ code, userId, playerName, preferLocal = fal
 
     return room
   } catch (error) {
-    console.warn('Supabase join failed. Checking local rooms instead.', error)
-    return joinMockGameRoom({ code: normalizedCode, userId, playerName })
+    throw new Error(getSupabaseRoomErrorMessage(error, 'join'))
   }
 }
 

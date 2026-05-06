@@ -94,6 +94,7 @@ export default function HostLobby() {
   const joinOrigin = getJoinOrigin();
   const joinUrl = room ? `${joinOrigin}/join?code=${room.code}` : '';
   const qrNeedsNetworkUrl = room && isLocalOrigin(joinOrigin);
+  const roomIsLocalOnly = room?.is_local;
 
   if (!room) {
     return (
@@ -167,6 +168,12 @@ export default function HostLobby() {
         {qrNeedsNetworkUrl && (
           <p className="max-w-sm rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800">
             This QR uses localhost, which only works on this device. Open the app from Vite's Network URL or set VITE_JOIN_ORIGIN.
+          </p>
+        )}
+
+        {roomIsLocalOnly && (
+          <p className="max-w-sm rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800">
+            This is a local-only room because Supabase is not configured. Other devices cannot find this code.
           </p>
         )}
 
