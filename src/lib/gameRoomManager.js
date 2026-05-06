@@ -11,6 +11,7 @@ import {
   getGameRoomByCode,
   getRoomPlayers,
   joinGameRoom,
+  leaveRoomPlayer,
   startGameRoom,
 } from '@/api/gameRooms';
 import { signInAsGuest } from '@/api/supabaseClient';
@@ -97,6 +98,10 @@ export async function getRoomByCode(code) {
 
 export async function startGame(roomId) {
   return startGameRoom(roomId);
+}
+
+export async function leaveRoom(playerId) {
+  return leaveRoomPlayer(playerId);
 }
 
 export async function updateRoomPlayers(roomId, players) {

@@ -6,7 +6,7 @@ import {
   renderGame,
   updateGameState,
 } from '@/lib/gameEngine';
-import { subscribeToRoomPlayers, updateRoomPlayerState } from '@/api/gameRooms';
+import { leaveRoomPlayer, subscribeToRoomPlayers, updateRoomPlayerState } from '@/api/gameRooms';
 import Leaderboard from './Leaderboard';
 import ScoreDisplay from './ScoreDisplay';
 import Minimap from './Minimap';
@@ -16,11 +16,21 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
   const gameStateRef = useRef(null);
   const mouseRef = useRef({ x: 0, y: 0 });
   const animFrameRef = useRef(null);
+  const isLeavingRef = useRef(false);
   const lastTimeRef = useRef(0);
   const lastSyncRef = useRef(0);
   const [leaderboard, setLeaderboard] = useState([]);
   const [score, setScore] = useState(0);
   const [gameState, setGameState] = useState(null);
+
+  const markPlayerLeft = useCallback(async () => {
+    if (!playerId || isLeavingRef.current) {
+      return;
+    }
+
+    isLeavingRef.current = true;
+    await leaveRoomPlayer(playerId);
+  }, [playerId]);
 
   // Initialize game state
   useEffect(() => {
@@ -35,18 +45,41 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
   useEffect(() => {
     if (!roomId || !playerId) return undefined;
 
-    return subscribeToRoomPlayers(roomId, (roomPlayers) => {
+    const handlePageHide = () => {
+      markPlayerLeft().catch((error) => {
+        console.error('Failed to leave game during page close', error);
+      });
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+
+    const unsubscribe = subscribeToRoomPlayers(roomId, (roomPlayers) => {
       const state = gameStateRef.current;
       if (!state) return;
 
       state.otherPlayers = roomPlayers
-        .filter((player) => player.id !== playerId)
+        .filter((player) => player.id !== playerId && !player.is_eliminated)
         .map(mapRoomPlayerToGamePlayer);
 
       setLeaderboard(getLeaderboard(state));
       setGameState({ ...state });
     });
-  }, [roomId, playerId]);
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      unsubscribe();
+    };
+  }, [roomId, playerId, markPlayerLeft]);
+
+  useEffect(() => {
+    if (!roomId || !playerId) return undefined;
+
+    return () => {
+      markPlayerLeft().catch((error) => {
+        console.error('Failed to leave game during unmount', error);
+      });
+    };
+  }, [roomId, playerId, markPlayerLeft]);
 
   // Handle mouse/touch movement
   const handleMouseMove = useCallback((e) => {
@@ -97,7 +130,7 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
         );
         renderGame(ctx, gameStateRef.current, canvas.width, canvas.height);
 
-        if (roomId && playerId && timestamp - lastSyncRef.current > 250) {
+        if (!isLeavingRef.current && roomId && playerId && timestamp - lastSyncRef.current > 250) {
           lastSyncRef.current = timestamp;
           const { player } = gameStateRef.current;
           updateRoomPlayerState(playerId, {
@@ -132,6 +165,18 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
     };
   }, []);
 
+  const handleLeaveGame = async () => {
+    try {
+      await markPlayerLeft();
+    } catch (error) {
+      console.error('Failed to leave game', error);
+    } finally {
+      localStorage.removeItem('bd_player_id');
+      localStorage.removeItem('bd_room_id');
+      window.location.href = '/';
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black overflow-hidden">
       <canvas
@@ -147,7 +192,7 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
 
       {/* Back button */}
       <button
-        onClick={() => window.location.href = '/'}
+        onClick={handleLeaveGame}
         className="absolute bottom-4 left-4 z-10 bg-black/60 backdrop-blur-sm text-white/70 hover:text-white rounded-lg px-3 py-2 text-xs font-body transition-colors"
       >
         ← Leave Game

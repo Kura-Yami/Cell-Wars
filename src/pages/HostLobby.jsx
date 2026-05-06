@@ -8,7 +8,7 @@ import FloatingCells from '@/components/game/FloatingCells';
 import GameCodeDisplay from '@/components/game/GameCodeDisplay';
 import QRCodeDisplay from '@/components/game/QRCodeDisplay';
 import PlayerList from '@/components/game/PlayerList';
-import { createRoom, getRoomByCode, startGame } from '@/lib/gameRoomManager';
+import { createRoom, getRoomByCode, leaveRoom, startGame } from '@/lib/gameRoomManager';
 
 function getConfiguredJoinOrigin(value) {
   const trimmedValue = value?.trim();
@@ -41,6 +41,7 @@ export default function HostLobby() {
   const [creating, setCreating] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
+  const [playerId, setPlayerId] = useState(localStorage.getItem('bd_player_id') || '');
 
   const handleCreate = async () => {
     if (creating) return;
@@ -53,6 +54,7 @@ export default function HostLobby() {
     try {
       const result = await createRoom(hostName.trim());
       setRoom(result.room);
+      setPlayerId(result.playerId);
       localStorage.setItem('bd_player_name', hostName.trim());
       localStorage.setItem('bd_player_id', result.playerId);
       localStorage.setItem('bd_room_id', result.room.id);
@@ -88,6 +90,18 @@ export default function HostLobby() {
       setError(err.message || 'Failed to start game');
     } finally {
       setStarting(false);
+    }
+  };
+
+  const handleLeaveLobby = async () => {
+    try {
+      await leaveRoom(playerId || localStorage.getItem('bd_player_id'));
+    } catch (err) {
+      console.error('Failed to leave lobby', err);
+    } finally {
+      localStorage.removeItem('bd_player_id');
+      localStorage.removeItem('bd_room_id');
+      navigate('/');
     }
   };
 
@@ -149,7 +163,7 @@ export default function HostLobby() {
         className="relative z-10 w-full max-w-md flex flex-col items-center gap-8"
       >
         <button
-          onClick={() => navigate('/')}
+          onClick={handleLeaveLobby}
           className="self-start text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm font-body transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Home

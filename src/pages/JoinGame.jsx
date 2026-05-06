@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import FloatingCells from '@/components/game/FloatingCells';
 import PlayerList from '@/components/game/PlayerList';
 import GameCodeDisplay from '@/components/game/GameCodeDisplay';
-import { joinRoom, getRoomByCode } from '@/lib/gameRoomManager';
+import { joinRoom, getRoomByCode, leaveRoom } from '@/lib/gameRoomManager';
 
 export default function JoinGame() {
   const navigate = useNavigate();
@@ -19,6 +19,7 @@ export default function JoinGame() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const [room, setRoom] = useState(null);
+  const [playerId, setPlayerId] = useState(localStorage.getItem('bd_player_id') || '');
   const [waitingForStart, setWaitingForStart] = useState(false);
 
   const handleJoin = async () => {
@@ -37,6 +38,7 @@ export default function JoinGame() {
     try {
       const result = await joinRoom(code.trim().toUpperCase(), playerName.trim());
       setRoom(result.room);
+      setPlayerId(result.playerId);
       localStorage.setItem('bd_player_name', playerName.trim());
       localStorage.setItem('bd_player_id', result.playerId);
       localStorage.setItem('bd_room_id', result.room.id);
@@ -45,6 +47,20 @@ export default function JoinGame() {
       setError(err.message || 'Failed to join room');
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleLeaveLobby = async () => {
+    try {
+      await leaveRoom(playerId || localStorage.getItem('bd_player_id'));
+    } catch (err) {
+      console.error('Failed to leave lobby', err);
+    } finally {
+      localStorage.removeItem('bd_player_id');
+      localStorage.removeItem('bd_room_id');
+      setWaitingForStart(false);
+      setRoom(null);
+      setPlayerId('');
     }
   };
 
@@ -87,7 +103,7 @@ export default function JoinGame() {
           <PlayerList players={room.players || []} hostName={room.host_name} />
 
           <button
-            onClick={() => { setWaitingForStart(false); setRoom(null); }}
+            onClick={handleLeaveLobby}
             className="text-sm text-muted-foreground hover:text-foreground font-body underline underline-offset-4 transition-colors"
           >
             Leave Lobby

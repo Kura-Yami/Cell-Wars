@@ -274,7 +274,7 @@ export async function getRoomPlayers(roomIdOrCode) {
   const localRoom = findMockRoom(roomIdOrCode)
 
   if (localRoom) {
-    return localRoom.players || []
+    return (localRoom.players || []).filter((player) => !player.is_eliminated)
   }
 
   if (!supabase) {
@@ -286,8 +286,50 @@ export async function getRoomPlayers(roomIdOrCode) {
       .from('room_players')
       .select('*')
       .eq('room_id', roomIdOrCode)
+      .eq('is_eliminated', false)
       .order('joined_at', { ascending: true }),
     'Supabase player lookup timed out'
+  )
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function leaveRoomPlayer(playerId) {
+  if (!playerId) {
+    return null
+  }
+
+  if (!supabase) {
+    const rooms = readMockRooms()
+    const roomEntry = Object.entries(rooms).find(([, room]) =>
+      room.players?.some((player) => player.id === playerId)
+    )
+
+    if (!roomEntry) {
+      return null
+    }
+
+    const [code, room] = roomEntry
+    room.players = room.players.map((player) =>
+      player.id === playerId ? { ...player, is_eliminated: true } : player
+    )
+    rooms[code] = room
+    writeMockRooms(rooms)
+    return room.players.find((player) => player.id === playerId)
+  }
+
+  const { data, error } = await withTimeout(
+    supabase
+      .from('room_players')
+      .update({ is_eliminated: true })
+      .eq('id', playerId)
+      .select()
+      .single(),
+    'Supabase player leave timed out'
   )
 
   if (error) {
