@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import imgWhiteBloodCell from '@/Images/Whiteblood cell.png';
 import imgRedBloodCell from '@/Images/RedBloodCell.png';
 import imgSingleBacteria from '@/Images/Single_Bacteria_cell.png';
+import gifBacteriadup from '@/Images/Bacteria_Duplication_vid.gif';
 import imgCancerCell from '@/Images/Cancercell.png';
 import imgVirus from '@/Images/Virus.png';
 import { Link } from 'react-router-dom';
@@ -128,7 +129,7 @@ const gameConnections = [
   { bio: 'Bigger immune cells engulf more', game: 'Larger size = can eat more, but slower' },
 ];
 
-const slideLabels = ['Intro', 'How It Works', 'White Blood Cells', 'Red Blood Cells', 'Bacteria', 'Viruses', 'Cancer Cells', 'Biology vs Game', 'Play'];
+const slideLabels = ['Intro', 'How It Works', 'White Blood Cells', 'Red Blood Cells', 'Bacteria', 'Viruses', 'Cancer Cells', 'Play'];
 
 function SlideTag({ n, total, label }) {
   return (
@@ -142,7 +143,7 @@ function Slide1() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8 px-6 md:flex-row md:gap-12 md:px-12">
       <div className="max-w-lg">
-        <SlideTag n={1} total={9} label="Overview" />
+        <SlideTag n={1} total={8} label="Overview" />
         <h2 className="font-heading text-4xl font-bold leading-tight text-foreground md:text-5xl">
           Your body is under constant attack.
         </h2>
@@ -164,7 +165,7 @@ function Slide2() {
   return (
     <div className="flex h-full flex-col justify-center gap-6 px-6 md:px-16">
       <div>
-        <SlideTag n={2} total={9} label="Immune Response" />
+        <SlideTag n={2} total={8} label="Immune Response" />
         <h2 className="font-heading text-4xl font-bold text-foreground md:text-5xl">How your immune system works.</h2>
       </div>
       <div className="grid gap-5 md:grid-cols-3">
@@ -186,7 +187,7 @@ function Slide3() {
   return (
     <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
       <div className="shrink-0 text-center md:text-left">
-        <SlideTag n={3} total={9} label="White Blood Cells" />
+        <SlideTag n={3} total={8} label="White Blood Cells" />
         <img src={imgWhiteBloodCell} alt="White blood cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
         <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">Leukocytes · Defenders</p>
         <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">White Blood Cells</h2>
@@ -228,7 +229,7 @@ function Slide4() {
   return (
     <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
       <div className="shrink-0 text-center md:text-left">
-        <SlideTag n={4} total={9} label="Red Blood Cells" />
+        <SlideTag n={4} total={8} label="Red Blood Cells" />
         <img src={imgRedBloodCell} alt="Red blood cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
         <p className="text-xs font-semibold uppercase tracking-wide text-red-500">Erythrocytes · Oxygen Carriers</p>
         <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Red Blood Cells</h2>
@@ -269,8 +270,8 @@ function Slide5() {
   return (
     <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
       <div className="shrink-0 text-center md:text-left">
-        <SlideTag n={5} total={9} label="Bacteria" />
-        <img src={imgSingleBacteria} alt="Bacteria cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
+        <SlideTag n={5} total={8} label="Bacteria" />
+        <img src={gifBacteriadup} alt="Bacteria duplication" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0 rounded-lg" />
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Prokaryotes · Living Invaders</p>
         <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Bacteria</h2>
         <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
@@ -311,7 +312,7 @@ function Slide6() {
   return (
     <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
       <div className="shrink-0 text-center md:text-left">
-        <SlideTag n={6} total={9} label="Viruses" />
+        <SlideTag n={6} total={8} label="Viruses" />
         <img src={imgVirus} alt="Virus" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
         <p className="text-xs font-semibold uppercase tracking-wide text-purple-600">Non-living · Hijackers</p>
         <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Viruses</h2>
@@ -353,7 +354,7 @@ function Slide7() {
   return (
     <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
       <div className="shrink-0 text-center md:text-left">
-        <SlideTag n={7} total={9} label="Cancer Cells" />
+        <SlideTag n={7} total={8} label="Cancer Cells" />
         <img src={imgCancerCell} alt="Cancer cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
         <p className="text-xs font-semibold uppercase tracking-wide text-pink-600">Mutated Cells · Silent Threat</p>
         <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Cancer Cells</h2>
@@ -388,39 +389,10 @@ function Slide7() {
   );
 }
 
-function Slide8() {
-  return (
-    <div className="flex h-full flex-col justify-center gap-6 px-6 md:px-16">
-      <div>
-        <SlideTag n={8} total={9} label="Biology → Game" />
-        <h2 className="font-heading text-4xl font-bold text-foreground md:text-5xl">How the game maps to real biology.</h2>
-      </div>
-      <div className="grid gap-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-md bg-indigo-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-indigo-700">Real Biology</div>
-          <div className="rounded-md bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">In the Game</div>
-        </div>
-        {gameConnections.map((row) => (
-          <div key={row.bio} className="grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2 rounded-lg border border-indigo-100 bg-white/80 px-4 py-3 text-sm text-foreground shadow-sm">
-              <Microscope className="h-4 w-4 shrink-0 text-indigo-400" />
-              {row.bio}
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-100 bg-white/80 px-4 py-3 text-sm text-foreground shadow-sm">
-              <Swords className="h-4 w-4 shrink-0 text-emerald-400" />
-              {row.game}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function Slide9() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6 px-6 text-center md:px-16">
-      <SlideTag n={9} total={9} label="Demo Time" />
+      <SlideTag n={8} total={8} label="Demo Time" />
       <h2 className="font-heading text-4xl font-bold text-foreground md:text-6xl">Time to play.</h2>
       <p className="max-w-xl text-base leading-7 text-muted-foreground">
         Apply what you learned. Collect red blood cells to grow, avoid pathogens until you're strong enough, then fight back.
@@ -466,8 +438,7 @@ function LearnTab() {
     <Slide5 key={4} />,
     <Slide6 key={5} />,
     <Slide7 key={6} />,
-    <Slide8 key={7} />,
-    <Slide9 key={8} />,
+    <Slide9 key={7} />,
   ];
 
   useEffect(() => {

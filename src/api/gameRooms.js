@@ -372,6 +372,7 @@ export async function updateRoomPlayerState(playerId, playerState) {
         score: playerState.score,
         size: playerState.size,
         is_eliminated: playerState.is_eliminated,
+        role: playerState.role,
       })
       .eq('id', playerId)
       .select()
