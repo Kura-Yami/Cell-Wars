@@ -17,6 +17,19 @@ export function initGameImages(srcs) {
   });
 }
 
+export function setPlayerRoleImage(src) {
+  const img = new Image();
+  img.onload = () => { _imgs.playerRole = img; };
+  img.src = src;
+}
+
+export const ABILITY_CONFIG = {
+  wbc:      { cooldown: 15, duration: 3,  name: 'Growth Boost', color: '#FFD700' },
+  bacteria: { cooldown: 15, duration: 0,  name: 'Duplicate',    color: '#66BB6A' },
+  virus:    { cooldown: 8,  duration: 3,  name: 'Speed Boost',  color: '#7C4DFF' },
+  cancer:   { cooldown: 20, duration: 5,  name: 'Shield',       color: '#29B6F6' },
+};
+
 const WORLD_SIZE = 4000;
 const RED_CELL_COUNT = 300;
 const BACTERIA_COUNT = 8;
@@ -82,7 +95,7 @@ function createCancerCell() {
 
 // --- Game State ---
 
-export function createGameState(playerName, existingPlayers = []) {
+export function createGameState(playerName, existingPlayers = [], playerTeam = 'defender', playerRole = 'wbc') {
   const redCells = Array.from({ length: RED_CELL_COUNT }, createRedCell);
   const bacteria = Array.from({ length: BACTERIA_COUNT }, createBacterium);
   const viruses = Array.from({ length: VIRUS_COUNT }, createVirus);
@@ -103,6 +116,7 @@ export function createGameState(playerName, existingPlayers = []) {
       radius: MIN_PLAYER_RADIUS + Math.random() * 15,
       score: 0,
       isAI: true,
+      team: 'defender',
       targetX: Math.random() * WORLD_SIZE,
       targetY: Math.random() * WORLD_SIZE,
       color: PLAYER_COLORS[i],
@@ -115,22 +129,52 @@ export function createGameState(playerName, existingPlayers = []) {
       name: playerName,
       x: WORLD_SIZE / 2,
       y: WORLD_SIZE / 2,
-      radius: MIN_PLAYER_RADIUS,
+      radius: playerRole === 'wbc' ? 50 : MIN_PLAYER_RADIUS,
       score: 0,
       isAI: false,
       alive: true,
       respawnTimer: 0,
+      role: playerRole,
+      abilityCooldown: 0,
+      abilityActive: false,
+      abilityDuration: 0,
     },
+    playerTeam,
     otherPlayers: aiPlayers,
     redCells,
     bacteria,
     viruses,
     cancerCells,
+    duplicates: [],
     worldSize: WORLD_SIZE,
     camera: { x: 0, y: 0 },
     time: 0,
     gameOver: false,
   };
+}
+
+export function activateAbility(state) {
+  const { player } = state;
+  if (player.abilityCooldown > 0) return;
+  const cfg = ABILITY_CONFIG[player.role];
+  if (!cfg) return;
+  player.abilityCooldown = cfg.cooldown;
+  if (player.role === 'bacteria') {
+    // Spawn a CPU clone with the player's name that hunts red cells
+    state.duplicates.push({
+      name: player.name,
+      x: player.x + (Math.random() - 0.5) * 80,
+      y: player.y + (Math.random() - 0.5) * 80,
+      radius: player.radius * 0.65,
+      life: 10,
+      angle: Math.random() * Math.PI * 2,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2,
+    });
+  } else {
+    player.abilityActive = true;
+    player.abilityDuration = cfg.duration;
+  }
 }
 
 function getPlayerColor(id, index = 0) {
@@ -161,6 +205,16 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
   const { player } = state;
   state.time += dt;
 
+  // --- Ability timers ---
+  if (player.abilityCooldown > 0) player.abilityCooldown = Math.max(0, player.abilityCooldown - dt);
+  if (player.abilityActive) {
+    player.abilityDuration -= dt;
+    if (player.abilityDuration <= 0) {
+      player.abilityActive = false;
+      player.abilityDuration = 0;
+    }
+  }
+
   // --- Player movement ---
   if (player.alive) {
     const worldMouseX = mouseX + state.camera.x;
@@ -170,7 +224,8 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist > 5) {
-      const speed = BASE_SPEED * (MIN_PLAYER_RADIUS / Math.max(player.radius, MIN_PLAYER_RADIUS)) * 1.2;
+      const speedMult = (player.abilityActive && player.role === 'virus') ? 4.5 : 1;
+      const speed = BASE_SPEED * (MIN_PLAYER_RADIUS / Math.max(player.radius, MIN_PLAYER_RADIUS)) * 1.2 * speedMult;
       player.x += (dx / dist) * speed;
       player.y += (dy / dist) * speed;
     }
@@ -183,7 +238,7 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
       player.alive = true;
       player.x = Math.random() * WORLD_SIZE;
       player.y = Math.random() * WORLD_SIZE;
-      player.radius = MIN_PLAYER_RADIUS;
+      player.radius = player.role === 'wbc' ? 50 : MIN_PLAYER_RADIUS;
     }
   }
 
@@ -191,8 +246,8 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
   state.camera.x = player.x - canvasW / 2;
   state.camera.y = player.y - canvasH / 2;
 
-  // --- Red cell collision (player eats) ---
-  if (player.alive) {
+  // --- Red cell collision (player eats) — WBC is immune to red cells ---
+  if (player.alive && player.role !== 'wbc') {
     for (let i = state.redCells.length - 1; i >= 0; i--) {
       const rc = state.redCells[i];
       const d = Math.hypot(player.x - rc.x, player.y - rc.y);
@@ -317,8 +372,8 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
           // Respawn enemy
           enemy.x = Math.random() * WORLD_SIZE;
           enemy.y = Math.random() * WORLD_SIZE;
-        } else {
-          // Player takes damage
+        } else if (!(player.abilityActive && player.role === 'cancer')) {
+          // Player takes damage (cancer shield blocks this)
           player.radius -= enemy.radius * 0.1 * damageMultiplier;
           if (player.radius < MIN_PLAYER_RADIUS * 0.5) {
             player.alive = false;
@@ -329,10 +384,57 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
       }
     };
 
-    state.bacteria.forEach(b => checkEnemyCollision(b, 0.5, 50));
-    state.viruses.forEach(v => checkEnemyCollision(v, 0.8, 30));
-    state.cancerCells.forEach(c => checkEnemyCollision(c, 1.0, 100));
+    if (state.playerTeam === 'defender') {
+      // Defenders fight NPC attackers; immune to other defenders (otherPlayers)
+      state.bacteria.forEach(b => checkEnemyCollision(b, 0.5, 50));
+      state.viruses.forEach(v => checkEnemyCollision(v, 0.8, 30));
+      state.cancerCells.forEach(c => checkEnemyCollision(c, 1.0, 100));
+      state.otherPlayers.forEach(ai => {
+        if (ai.team === 'attacker') checkEnemyCollision(ai, 0.7, 75);
+      });
+    } else {
+      // Attackers fight defender players only; NPC bacteria/virus/cancer are allies
+      state.otherPlayers.forEach(ai => {
+        if (ai.team !== 'attacker') checkEnemyCollision(ai, 0.7, 75);
+      });
+    }
   }
+
+  // --- Duplicate clones (bacteria ability) ---
+  state.duplicates = state.duplicates.filter(d => d.life > 0);
+  state.duplicates.forEach(d => {
+    d.life -= dt;
+    // Seek nearest red cell like a CPU player
+    let closest = null, closestDist = 500;
+    state.redCells.forEach(rc => {
+      const dist = Math.hypot(rc.x - d.x, rc.y - d.y);
+      if (dist < closestDist) { closest = rc; closestDist = dist; }
+    });
+    if (closest) {
+      const ddx = closest.x - d.x;
+      const ddy = closest.y - d.y;
+      const ddist = Math.sqrt(ddx * ddx + ddy * ddy);
+      if (ddist > 3) {
+        d.vx = (ddx / ddist) * 1.8;
+        d.vy = (ddy / ddist) * 1.8;
+      }
+    } else if (Math.random() < 0.03) {
+      d.vx = (Math.random() - 0.5) * 2;
+      d.vy = (Math.random() - 0.5) * 2;
+    }
+    d.x += d.vx;
+    d.y += d.vy;
+    d.x = Math.max(d.radius, Math.min(WORLD_SIZE - d.radius, d.x));
+    d.y = Math.max(d.radius, Math.min(WORLD_SIZE - d.radius, d.y));
+    d.angle = Math.atan2(d.vy, d.vx);
+    for (let i = state.redCells.length - 1; i >= 0; i--) {
+      const rc = state.redCells[i];
+      if (Math.hypot(d.x - rc.x, d.y - rc.y) < d.radius + rc.radius * 0.5) {
+        player.score += 5;
+        state.redCells[i] = createRedCell();
+      }
+    }
+  });
 
   return state;
 }
@@ -371,6 +473,37 @@ export function renderGame(ctx, state, canvasW, canvasH) {
     drawBacterium(ctx, sx, sy, b.radius, b.angle, time);
   });
 
+  // Bacteria duplicates — rendered as CPU copies of the player with their name
+  state.duplicates.forEach(d => {
+    const sx = d.x - camera.x;
+    const sy = d.y - camera.y;
+    if (sx < -60 || sx > canvasW + 60 || sy < -60 || sy > canvasH + 60) return;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, d.life * 0.5);
+    // Use the player's role image, rotated to face movement direction
+    const img = _imgs.playerRole || _imgs.bacteria;
+    ctx.translate(sx, sy);
+    ctx.rotate(d.angle + Math.PI / 2);
+    if (img) {
+      drawImgProp(ctx, img, 0, 0, d.radius * 2.2);
+    }
+    ctx.restore();
+    // Name tag drawn separately (no transform)
+    if (d.name) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, d.life * 0.5);
+      const fontSize = Math.max(10, Math.min(14, d.radius * 0.5));
+      ctx.font = `bold ${fontSize}px Fredoka, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#333';
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(d.name, sx, sy - d.radius - 8);
+      ctx.fillText(d.name, sx, sy - d.radius - 8);
+      ctx.restore();
+    }
+  });
+
   state.viruses.forEach(v => {
     const sx = v.x - camera.x;
     const sy = v.y - camera.y;
@@ -397,6 +530,20 @@ export function renderGame(ctx, state, canvasW, canvasH) {
   if (state.player.alive) {
     const px = state.player.x - camera.x;
     const py = state.player.y - camera.y;
+
+    // Ability visual ring
+    if (state.player.abilityActive) {
+      const cfg = ABILITY_CONFIG[state.player.role];
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(px, py, state.player.radius + 8, 0, Math.PI * 2);
+      ctx.strokeStyle = cfg ? cfg.color : '#ffffff';
+      ctx.globalAlpha = 0.55 + Math.sin(time * 8) * 0.35;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.restore();
+    }
+
     drawWhiteBloodCell(ctx, px, py, state.player.radius, '#ffffff', time, state.player.name, true);
   }
 
@@ -621,12 +768,13 @@ function drawCancerCell(ctx, x, y, r, phase) {
 
 function drawWhiteBloodCell(ctx, x, y, r, color, time, name, isLocal = false) {
   ctx.save();
-  if (_imgs.wbc) {
+  const playerImg = isLocal ? (_imgs.playerRole || _imgs.wbc) : _imgs.wbc;
+  if (playerImg) {
     if (isLocal) {
       ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
       ctx.shadowBlur = 28;
     }
-    drawImgProp(ctx, _imgs.wbc, x, y, r * 2);
+    drawImgProp(ctx, playerImg, x, y, r * 2);
     ctx.shadowBlur = 0;
     if (name) {
       ctx.font = `bold ${Math.max(10, Math.min(14, r * 0.5))}px Fredoka, sans-serif`;

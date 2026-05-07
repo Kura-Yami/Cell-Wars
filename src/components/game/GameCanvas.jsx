@@ -1,6 +1,8 @@
 // @ts-nocheck
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
+  ABILITY_CONFIG,
+  activateAbility,
   createGameState,
   getLeaderboard,
   initGameImages,
@@ -18,7 +20,51 @@ import Leaderboard from './Leaderboard';
 import ScoreDisplay from './ScoreDisplay';
 import Minimap from './Minimap';
 
-export default function GameCanvas({ playerName, players = [], roomId, playerId }) {
+function AbilityButton({ role, cooldown, active, onActivate }) {
+  const cfg = ABILITY_CONFIG[role];
+  if (!cfg) return null;
+  const onCooldown = cooldown > 0;
+  const circumference = 2 * Math.PI * 28;
+  const dashOffset = circumference * (onCooldown ? cooldown / cfg.cooldown : 0);
+
+  return (
+    <div className="absolute bottom-16 right-4 z-10 flex flex-col items-center gap-1">
+      <button
+        onClick={onActivate}
+        disabled={onCooldown}
+        style={{ borderColor: active ? cfg.color : undefined }}
+        className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-sm border-2 transition-all
+          ${active ? 'border-yellow-300 bg-yellow-400/20 text-yellow-200' :
+            onCooldown ? 'border-white/20 bg-black/50 text-white/40 cursor-not-allowed' :
+            'border-white/40 bg-black/60 text-white hover:bg-black/80 cursor-pointer'}`}
+      >
+        <svg className="absolute inset-0" width="64" height="64" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+          {onCooldown && (
+            <circle
+              cx="32" cy="32" r="28"
+              fill="none"
+              stroke="rgba(255,255,255,0.65)"
+              strokeWidth="3"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashOffset}
+              strokeLinecap="round"
+              transform="rotate(-90 32 32)"
+            />
+          )}
+        </svg>
+        <span className="relative z-10 text-xs font-bold text-center leading-tight px-1">
+          {active ? 'ACTIVE' : onCooldown ? `${Math.ceil(cooldown)}s` : cfg.name.split(' ')[0]}
+        </span>
+      </button>
+      <span className="text-[10px] text-white/60 bg-black/40 rounded px-2 py-0.5 font-body whitespace-nowrap">
+        {cfg.name}
+      </span>
+    </div>
+  );
+}
+
+export default function GameCanvas({ playerName, players = [], roomId, playerId, playerTeam = 'defender', playerRole = 'wbc' }) {
   const canvasRef = useRef(null);
   const gameStateRef = useRef(null);
   const mouseRef = useRef({ x: 0, y: 0 });
@@ -29,6 +75,7 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
   const [leaderboard, setLeaderboard] = useState([]);
   const [score, setScore] = useState(0);
   const [gameState, setGameState] = useState(null);
+  const [abilityState, setAbilityState] = useState({ cooldown: 0, active: false, duration: 0 });
 
   useEffect(() => {
     initGameImages({
@@ -52,7 +99,7 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
   // Initialize game state
   useEffect(() => {
     const existingPlayerSlots = roomId ? Array.from({ length: 3 }) : players;
-    gameStateRef.current = createGameState(playerName, existingPlayerSlots);
+    gameStateRef.current = createGameState(playerName, existingPlayerSlots, playerTeam, playerRole);
     if (playerId) {
       gameStateRef.current.player.id = playerId;
     }
@@ -168,6 +215,8 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
           setLeaderboard(getLeaderboard(gameStateRef.current));
           setScore(gameStateRef.current.player.score);
           setGameState({ ...gameStateRef.current });
+          const { abilityCooldown, abilityActive, abilityDuration } = gameStateRef.current.player;
+          setAbilityState({ cooldown: abilityCooldown, active: abilityActive, duration: abilityDuration });
         }
       }
 
@@ -180,6 +229,14 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       window.removeEventListener('resize', resizeCanvas);
     };
+  }, []);
+
+  const handleAbility = useCallback(() => {
+    if (gameStateRef.current) {
+      activateAbility(gameStateRef.current);
+      const { abilityCooldown, abilityActive, abilityDuration } = gameStateRef.current.player;
+      setAbilityState({ cooldown: abilityCooldown, active: abilityActive, duration: abilityDuration });
+    }
   }, []);
 
   const handleLeaveGame = async () => {
@@ -206,6 +263,14 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
       <ScoreDisplay score={score} playerName={playerName} />
       <Leaderboard entries={leaderboard} />
       {gameState && <Minimap gameState={gameState} />}
+
+      {/* Ability button */}
+      <AbilityButton
+        role={playerRole}
+        cooldown={abilityState.cooldown}
+        active={abilityState.active}
+        onActivate={handleAbility}
+      />
 
       {/* Back button */}
       <button
