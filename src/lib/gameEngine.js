@@ -1,9 +1,21 @@
+// @ts-nocheck
 // ============================================
 // Body Defense - Game Engine
 // ============================================
 // This module handles all game state, rendering,
 // and physics for the Cell Wars arena.
 // ============================================
+
+// Module-level image cache loaded once via initGameImages()
+const _imgs = {};
+
+export function initGameImages(srcs) {
+  Object.entries(srcs).forEach(([key, src]) => {
+    const img = new Image();
+    img.onload = () => { _imgs[key] = img; };
+    img.src = src;
+  });
+}
 
 const WORLD_SIZE = 4000;
 const RED_CELL_COUNT = 300;
@@ -403,6 +415,14 @@ export function renderGame(ctx, state, canvasW, canvasH) {
 
 // --- Draw Helpers ---
 
+// Draw an image centered at (cx, cy), scaled so the longest side = maxSize, aspect ratio preserved.
+function drawImgProp(ctx, img, cx, cy, maxSize) {
+  const aspect = img.naturalWidth / img.naturalHeight;
+  const w = aspect >= 1 ? maxSize : maxSize * aspect;
+  const h = aspect >= 1 ? maxSize / aspect : maxSize;
+  ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+}
+
 function drawBackground(ctx, camera, w, h, time) {
   // Subtle flowing particles
   ctx.save();
@@ -447,6 +467,11 @@ function drawBoundary(ctx, camera, w, h) {
 function drawRedCell(ctx, x, y, r, opacity, time) {
   ctx.save();
   ctx.globalAlpha = opacity;
+  if (_imgs.rbc) {
+    drawImgProp(ctx, _imgs.rbc, x, y, r * 2.8);
+    ctx.restore();
+    return;
+  }
   // Biconcave disc shape
   const squish = 0.7 + Math.sin(time * 1.5) * 0.05;
   ctx.beginPath();
@@ -469,6 +494,13 @@ function drawBacterium(ctx, x, y, r, angle, time) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
+  if (_imgs.bacteria) {
+    // image is tall/thin — rotate extra 90° so it aligns with movement direction
+    ctx.rotate(Math.PI / 2);
+    drawImgProp(ctx, _imgs.bacteria, 0, 0, r * 2.2);
+    ctx.restore();
+    return;
+  }
   // Rod shape
   const w = r * 1.6;
   const h = r * 0.7;
@@ -501,6 +533,11 @@ function drawBacterium(ctx, x, y, r, angle, time) {
 
 function drawVirus(ctx, x, y, r, time) {
   ctx.save();
+  if (_imgs.virus) {
+    drawImgProp(ctx, _imgs.virus, x, y, r * 2.4);
+    ctx.restore();
+    return;
+  }
   // Spiky ball
   const spikes = 8;
   const spikeLen = r * 0.6;
@@ -541,6 +578,12 @@ function drawVirus(ctx, x, y, r, time) {
 
 function drawCancerCell(ctx, x, y, r, phase) {
   ctx.save();
+  if (_imgs.cancer) {
+    const pulse = 1 + Math.sin(phase) * 0.06;
+    drawImgProp(ctx, _imgs.cancer, x, y, r * 2.2 * pulse);
+    ctx.restore();
+    return;
+  }
   const pulse = 1 + Math.sin(phase) * 0.08;
   const pr = r * pulse;
   // Irregular blob
@@ -578,6 +621,25 @@ function drawCancerCell(ctx, x, y, r, phase) {
 
 function drawWhiteBloodCell(ctx, x, y, r, color, time, name, isLocal = false) {
   ctx.save();
+  if (_imgs.wbc) {
+    if (isLocal) {
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+      ctx.shadowBlur = 28;
+    }
+    drawImgProp(ctx, _imgs.wbc, x, y, r * 2);
+    ctx.shadowBlur = 0;
+    if (name) {
+      ctx.font = `bold ${Math.max(10, Math.min(14, r * 0.5))}px Fredoka, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = isLocal ? '#1a1a2e' : '#333';
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(name, x, y - r - 8);
+      ctx.fillText(name, x, y - r - 8);
+    }
+    ctx.restore();
+    return;
+  }
   // Soft organic blob
   const wobbleAmount = isLocal ? 0.06 : 0.04;
   ctx.beginPath();

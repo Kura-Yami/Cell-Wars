@@ -1,4 +1,10 @@
-import React from 'react';
+// @ts-nocheck
+import { useEffect, useRef, useState } from 'react';
+import imgWhiteBloodCell from '@/Images/Whiteblood cell.png';
+import imgRedBloodCell from '@/Images/RedBloodCell.png';
+import imgSingleBacteria from '@/Images/Single_Bacteria_cell.png';
+import imgCancerCell from '@/Images/Cancercell.png';
+import imgVirus from '@/Images/Virus.png';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -71,6 +77,7 @@ const immuneSteps = [
   },
 ];
 
+/** @param {{ className: string, icon: React.ElementType }} props */
 function CellOrb({ className, icon: Icon }) {
   return (
     <div className={`relative flex aspect-square items-center justify-center rounded-full bg-gradient-to-br shadow-inner ${className}`}>
@@ -113,75 +120,434 @@ function SiteHeader() {
   );
 }
 
-function LearnTab() {
+const gameConnections = [
+  { bio: 'White blood cell patrols for threats', game: 'Your cell — you control it' },
+  { bio: 'Red blood cells carry oxygen through blood', game: 'Collectibles that make you grow' },
+  { bio: 'Bacteria can reproduce and spread', game: 'AI enemies that multiply over time' },
+  { bio: 'Viruses hijack host cells', game: 'Fast enemies that drain your size' },
+  { bio: 'Bigger immune cells engulf more', game: 'Larger size = can eat more, but slower' },
+];
+
+const slideLabels = ['Intro', 'How It Works', 'White Blood Cells', 'Red Blood Cells', 'Bacteria', 'Viruses', 'Cancer Cells', 'Biology vs Game', 'Play'];
+
+function SlideTag({ n, total, label }) {
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-      <section className="overflow-hidden rounded-lg border border-border bg-white/82 shadow-sm">
-        <div className="grid min-h-[420px] gap-8 p-6 md:grid-cols-[0.9fr_1.1fr] md:p-8">
-          <div className="flex flex-col justify-center">
-            <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">
-              Your immune system is a living defense network.
-            </h2>
-            <p className="mt-4 text-sm leading-6 text-muted-foreground">
-              White blood cells move through blood and tissues looking for danger. They can engulf bacteria, mark infected cells, and call in specialized immune responses.
-            </p>
-            <div className="mt-6 grid gap-3">
-              {immuneSteps.map((step, index) => (
-                <div key={step.title} className="flex items-start gap-3 rounded-md border border-border bg-background/80 p-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <h3 className="font-heading text-base font-semibold text-foreground">{step.title}</h3>
-                    <p className="text-sm leading-5 text-muted-foreground">{step.text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+    <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">
+      Slide {n} of {total} · {label}
+    </p>
+  );
+}
 
-          <div className="relative min-h-[320px] overflow-hidden rounded-lg border border-rose-100 bg-[radial-gradient(circle_at_20%_20%,rgba(244,114,182,0.25),transparent_30%),linear-gradient(135deg,#fff1f2,#eef2ff_54%,#ecfdf5)]">
-            <div className="absolute left-[10%] top-[18%] h-24 w-24 rounded-full bg-gradient-to-br from-red-200 via-red-500 to-red-800 shadow-xl" />
-            <div className="absolute right-[14%] top-[12%] h-16 w-16 rounded-full bg-gradient-to-br from-red-100 via-rose-400 to-red-700 shadow-lg" />
-            <div className="absolute bottom-[18%] left-[12%] h-14 w-14 rounded-full bg-gradient-to-br from-fuchsia-200 via-purple-500 to-violet-900 shadow-lg" />
-            <div className="absolute bottom-[14%] right-[12%] h-20 w-32 rounded-full bg-gradient-to-r from-lime-200 via-emerald-400 to-green-800 shadow-lg" />
-            <div className="absolute left-1/2 top-1/2 flex h-36 w-36 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-gradient-to-br from-white via-indigo-100 to-slate-200 shadow-2xl ring-8 ring-white/45">
-              <Shield className="h-16 w-16 text-primary" />
-            </div>
-            <div className="absolute inset-x-8 bottom-8 rounded-lg border border-white/60 bg-white/75 p-4 shadow-sm backdrop-blur">
-              <p className="text-sm font-medium text-foreground">
-                Game idea: grow by collecting red blood cells, but choose when to fight pathogens. Bigger is safer, but slower.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+function Slide1() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-8 px-6 md:flex-row md:gap-12 md:px-12">
+      <div className="max-w-lg">
+        <SlideTag n={1} total={9} label="Overview" />
+        <h2 className="font-heading text-4xl font-bold leading-tight text-foreground md:text-5xl">
+          Your body is under constant attack.
+        </h2>
+        <p className="mt-5 text-base leading-7 text-muted-foreground">
+          Every day, bacteria, viruses, and other pathogens try to invade your body. Your immune system — led by white blood cells — is the defense force that keeps you alive.
+        </p>
+        <p className="mt-3 text-base leading-7 text-muted-foreground">
+          In this game, <strong>you are the white blood cell.</strong>
+        </p>
+      </div>
+      <div className="flex h-64 w-64 shrink-0 items-center justify-center md:h-80 md:w-80">
+        <img src={imgWhiteBloodCell} alt="White blood cell" className="h-full w-full object-contain drop-shadow-2xl" />
+      </div>
+    </div>
+  );
+}
 
-      <section className="grid gap-4">
-        <div className="rounded-lg border border-border bg-white/82 p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <CellOrb className="h-16 w-16 from-white via-indigo-100 to-slate-300" icon={Shield} />
-            <div>
-              <h2 className="font-heading text-2xl font-bold">Immune Mission</h2>
-              <p className="text-sm text-muted-foreground">Protect the bloodstream while learning what each cell does.</p>
+function Slide2() {
+  return (
+    <div className="flex h-full flex-col justify-center gap-6 px-6 md:px-16">
+      <div>
+        <SlideTag n={2} total={9} label="Immune Response" />
+        <h2 className="font-heading text-4xl font-bold text-foreground md:text-5xl">How your immune system works.</h2>
+      </div>
+      <div className="grid gap-5 md:grid-cols-3">
+        {immuneSteps.map((step, index) => (
+          <div key={step.title} className="flex flex-col gap-4 rounded-xl border border-border bg-white/80 p-6 shadow-sm">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
+              {index + 1}
             </div>
+            <h3 className="font-heading text-2xl font-bold text-foreground">{step.title}</h3>
+            <p className="text-sm leading-6 text-muted-foreground">{step.text}</p>
           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Slide3() {
+  return (
+    <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
+      <div className="shrink-0 text-center md:text-left">
+        <SlideTag n={3} total={9} label="White Blood Cells" />
+        <img src={imgWhiteBloodCell} alt="White blood cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
+        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">Leukocytes · Defenders</p>
+        <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">White Blood Cells</h2>
+        <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+          White blood cells are immune system cells produced in the bone marrow that protect the body against infections, foreign invaders, and diseases.
+        </p>
+        <div className="mt-3 inline-block rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+          In Game: You — the player cell
         </div>
-        <div className="rounded-lg border border-border bg-white/82 p-5 shadow-sm">
-          <h3 className="font-heading text-lg font-semibold">Classroom Prompts</h3>
-          <ul className="mt-3 space-y-3 text-sm leading-5 text-muted-foreground">
-            <li>What makes bacteria different from viruses?</li>
-            <li>Why does growth make the cell slower in the game?</li>
-            <li>Which parts are simplified compared with real immunity?</li>
+      </div>
+
+      <div className="grid flex-1 gap-3">
+        <div className="rounded-xl border border-indigo-100 bg-white/80 p-4 shadow-sm">
+          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-indigo-600">Cell Types</h3>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+            <li><strong>Neutrophils</strong> — first responders, rush to infections within minutes</li>
+            <li><strong>Macrophages</strong> — engulf and digest bacteria, clean up dead cells</li>
+            <li><strong>T Cells</strong> — hunt and kill virus-infected or cancerous cells</li>
+            <li><strong>B Cells</strong> — produce antibodies that tag pathogens for destruction</li>
+            <li><strong>Natural Killer Cells</strong> — destroy abnormal cells without prior exposure</li>
           </ul>
         </div>
-        <div className="rounded-lg border border-border bg-white/82 p-5 shadow-sm">
-          <h3 className="font-heading text-lg font-semibold">Best Demo Flow</h3>
-          <p className="mt-2 text-sm leading-5 text-muted-foreground">
-            Start with the cell guide, launch a short solo round, then discuss which game behaviors match real immune system behavior.
-          </p>
+        <div className="rounded-xl border border-indigo-100 bg-white/80 p-4 shadow-sm">
+          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-indigo-600">Real-World Examples</h3>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+            <li><strong>Strep throat</strong> — neutrophils flood the throat, causing redness and swelling</li>
+            <li><strong>COVID-19 vaccines</strong> — B cells make antibodies; T cells remember the virus for years</li>
+            <li><strong>HIV</strong> — destroys CD4 T cells, leaving the immune system unable to fight anything</li>
+            <li><strong>Leukemia</strong> — cancer where bone marrow makes too many dysfunctional white blood cells</li>
+            <li><strong>Cancer cells</strong> — Natural Killer cells hunt and destroy them before tumors can form</li>
+          </ul>
         </div>
-      </section>
+      </div>
+    </div>
+  );
+}
+
+function Slide4() {
+  return (
+    <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
+      <div className="shrink-0 text-center md:text-left">
+        <SlideTag n={4} total={9} label="Red Blood Cells" />
+        <img src={imgRedBloodCell} alt="Red blood cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
+        <p className="text-xs font-semibold uppercase tracking-wide text-red-500">Erythrocytes · Oxygen Carriers</p>
+        <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Red Blood Cells</h2>
+        <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+          Red blood cells are specialized cells produced in the bone marrow that transport oxygen from the lungs to body tissues and carry carbon dioxide back for exhalation. They contain hemoglobin, a protein that gives blood its red color.
+        </p>
+        <div className="mt-3 inline-block rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+          In Game: Collectibles that make you grow
+        </div>
+      </div>
+
+      <div className="grid flex-1 gap-3">
+        <div className="rounded-xl border border-red-100 bg-white/80 p-4 shadow-sm">
+          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-red-600">Key Biology</h3>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+            <li><strong>Hemoglobin</strong> — iron-based protein inside RBCs that binds and carries oxygen</li>
+            <li><strong>Biconcave disc shape</strong> — maximizes surface area for faster gas exchange</li>
+            <li><strong>No nucleus</strong> — more room for hemoglobin; can't divide or repair themselves</li>
+            <li><strong>Bone marrow production</strong> — your body makes ~2 million new RBCs every second</li>
+            <li><strong>Carry CO₂ back</strong> — return carbon dioxide from tissues to the lungs for exhale</li>
+          </ul>
+        </div>
+        <div className="rounded-xl border border-red-100 bg-white/80 p-4 shadow-sm">
+          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-red-600">Real-World Examples</h3>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+            <li><strong>Sickle cell anemia</strong> — misshapen crescent RBCs clump and block blood flow, causing severe pain crises</li>
+            <li><strong>Iron deficiency anemia</strong> — not enough hemoglobin; causes fatigue, pale skin, shortness of breath</li>
+            <li><strong>Altitude sickness</strong> — at high elevation, body produces more RBCs to compensate for thinner air</li>
+            <li><strong>Blood transfusions</strong> — donated RBCs save lives in trauma, surgery, and cancer treatment</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Slide5() {
+  return (
+    <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
+      <div className="shrink-0 text-center md:text-left">
+        <SlideTag n={5} total={9} label="Bacteria" />
+        <img src={imgSingleBacteria} alt="Bacteria cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
+        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Prokaryotes · Living Invaders</p>
+        <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Bacteria</h2>
+        <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+          Bacteria are microscopic, single-celled prokaryotic organisms found in nearly every environment on Earth. While some act as pathogens causing infections like strep throat, most are harmless or beneficial, supporting digestion and immunity.
+        </p>
+        <div className="mt-3 inline-block rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+          In Game: AI enemies that multiply over time
+        </div>
+      </div>
+
+      <div className="grid flex-1 gap-3">
+        <div className="rounded-xl border border-emerald-100 bg-white/80 p-4 shadow-sm">
+          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-emerald-700">Key Biology</h3>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+            <li><strong>Prokaryotes</strong> — no membrane-bound nucleus; DNA floats freely in the cell</li>
+            <li><strong>Cell wall</strong> — rigid outer layer that antibiotics target to destroy the bacteria</li>
+            <li><strong>Binary fission</strong> — splits into two identical copies; can double every 20 minutes</li>
+            <li><strong>Toxin release</strong> — some bacteria secrete poisons that damage surrounding tissue</li>
+            <li><strong>Not all bad</strong> — your gut has ~38 trillion bacteria that help you digest food</li>
+          </ul>
+        </div>
+        <div className="rounded-xl border border-emerald-100 bg-white/80 p-4 shadow-sm">
+          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-emerald-700">Real-World Examples</h3>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+            <li><strong>Strep throat</strong> (S. pyogenes) — untreated, can lead to rheumatic heart disease</li>
+            <li><strong>MRSA</strong> — antibiotic-resistant staph; dangerous in hospitals and on skin</li>
+            <li><strong>Salmonella</strong> — food poisoning from undercooked chicken or eggs; infects gut lining</li>
+            <li><strong>Tuberculosis</strong> (M. tuberculosis) — kills ~1.5 million people per year worldwide</li>
+            <li><strong>Bubonic plague</strong> (Y. pestis) — killed one-third of Europe in the 14th century</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Slide6() {
+  return (
+    <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
+      <div className="shrink-0 text-center md:text-left">
+        <SlideTag n={6} total={9} label="Viruses" />
+        <img src={imgVirus} alt="Virus" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
+        <p className="text-xs font-semibold uppercase tracking-wide text-purple-600">Non-living · Hijackers</p>
+        <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Viruses</h2>
+        <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+          Viruses are tiny, non-living, acellular pathogens that require a living host cell to replicate. Composed of genetic material (DNA or RNA) inside a protein coat (capsid), they hijack host machinery to create new viruses, often destroying the host cell.
+        </p>
+        <div className="mt-3 inline-block rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">
+          In Game: Fast enemies that drain your size
+        </div>
+      </div>
+
+      <div className="grid flex-1 gap-3">
+        <div className="rounded-xl border border-purple-100 bg-white/80 p-4 shadow-sm">
+          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-purple-700">Key Biology</h3>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+            <li><strong>Not alive</strong> — no metabolism, no cells; just DNA or RNA wrapped in a protein coat (capsid)</li>
+            <li><strong>Hijack host cells</strong> — inject genetic material and force the cell to make thousands of copies</li>
+            <li><strong>Tiny</strong> — 20–300 nanometers; most bacteria are 10–100× larger</li>
+            <li><strong>Rapid mutation</strong> — RNA viruses mutate fast, making vaccines and treatments harder</li>
+            <li><strong>Antibiotics don't work</strong> — need antivirals (e.g., Tamiflu) or vaccines for prevention</li>
+          </ul>
+        </div>
+        <div className="rounded-xl border border-purple-100 bg-white/80 p-4 shadow-sm">
+          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-purple-700">Real-World Examples</h3>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+            <li><strong>Influenza</strong> — mutates yearly; that's why the flu vaccine changes every season</li>
+            <li><strong>SARS-CoV-2 (COVID-19)</strong> — hijacks lung cells; caused a global pandemic in 2020</li>
+            <li><strong>HIV</strong> — destroys T cells over years, eventually causing AIDS; no cure yet</li>
+            <li><strong>Chickenpox (varicella)</strong> — lies dormant in nerve cells for decades; reactivates as shingles</li>
+            <li><strong>Ebola</strong> — destroys blood vessel cells; up to 90% fatality in some outbreaks</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Slide7() {
+  return (
+    <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
+      <div className="shrink-0 text-center md:text-left">
+        <SlideTag n={7} total={9} label="Cancer Cells" />
+        <img src={imgCancerCell} alt="Cancer cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
+        <p className="text-xs font-semibold uppercase tracking-wide text-pink-600">Mutated Cells · Silent Threat</p>
+        <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Cancer Cells</h2>
+        <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+          Your own cells gone rogue. They divide uncontrollably and evade the immune system — sometimes for years before detection.
+        </p>
+      </div>
+
+      <div className="grid flex-1 gap-3">
+        <div className="rounded-xl border border-pink-100 bg-white/80 p-4 shadow-sm">
+          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-pink-600">Key Biology</h3>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+            <li><strong>Mutated DNA</strong> — damage to genes that control cell division causes uncontrolled growth</li>
+            <li><strong>Ignore stop signals</strong> — normal cells stop dividing when crowded; cancer cells don't</li>
+            <li><strong>Evade immune detection</strong> — cancer cells disguise surface proteins to hide from T cells</li>
+            <li><strong>Angiogenesis</strong> — tumors grow their own blood vessels to feed themselves</li>
+            <li><strong>Metastasis</strong> — advanced cancer breaks off and spreads to other organs via the bloodstream</li>
+          </ul>
+        </div>
+        <div className="rounded-xl border border-pink-100 bg-white/80 p-4 shadow-sm">
+          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-pink-600">Real-World Examples</h3>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+            <li><strong>Leukemia</strong> — cancer of white blood cells; bone marrow floods blood with useless cells</li>
+            <li><strong>Lung cancer</strong> — most common cancer worldwide; often triggered by carcinogens in smoke</li>
+            <li><strong>Melanoma</strong> — UV radiation mutates skin cells; spreads rapidly if not caught early</li>
+            <li><strong>Cervical cancer</strong> — caused by HPV virus integrating into and mutating host cell DNA</li>
+            <li><strong>CAR-T therapy</strong> — scientists engineer T cells to hunt specific cancer cell proteins; a new frontier</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Slide8() {
+  return (
+    <div className="flex h-full flex-col justify-center gap-6 px-6 md:px-16">
+      <div>
+        <SlideTag n={8} total={9} label="Biology → Game" />
+        <h2 className="font-heading text-4xl font-bold text-foreground md:text-5xl">How the game maps to real biology.</h2>
+      </div>
+      <div className="grid gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-md bg-indigo-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-indigo-700">Real Biology</div>
+          <div className="rounded-md bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">In the Game</div>
+        </div>
+        {gameConnections.map((row) => (
+          <div key={row.bio} className="grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-2 rounded-lg border border-indigo-100 bg-white/80 px-4 py-3 text-sm text-foreground shadow-sm">
+              <Microscope className="h-4 w-4 shrink-0 text-indigo-400" />
+              {row.bio}
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-100 bg-white/80 px-4 py-3 text-sm text-foreground shadow-sm">
+              <Swords className="h-4 w-4 shrink-0 text-emerald-400" />
+              {row.game}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Slide9() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-6 px-6 text-center md:px-16">
+      <SlideTag n={9} total={9} label="Demo Time" />
+      <h2 className="font-heading text-4xl font-bold text-foreground md:text-6xl">Time to play.</h2>
+      <p className="max-w-xl text-base leading-7 text-muted-foreground">
+        Apply what you learned. Collect red blood cells to grow, avoid pathogens until you're strong enough, then fight back.
+      </p>
+      <div className="mt-2 flex flex-wrap justify-center gap-4">
+        <Link to="/play?solo=true">
+          <Button className="h-14 rounded-lg px-8 font-heading text-lg">
+            <Play className="h-5 w-5" />
+            Solo Game
+          </Button>
+        </Link>
+        <Link to="/host">
+          <Button variant="outline" className="h-14 rounded-lg border-2 px-8 font-heading text-lg">
+            <Users className="h-5 w-5" />
+            Host Multiplayer
+          </Button>
+        </Link>
+      </div>
+      <div className="mt-4 rounded-xl border border-border bg-white/80 p-5 shadow-sm">
+        <h3 className="font-heading text-base font-semibold">Discussion prompts</h3>
+        <ul className="mt-3 space-y-2 text-sm leading-5 text-muted-foreground">
+          <li>What makes bacteria different from viruses?</li>
+          <li>Why does growth make the cell slower in the game?</li>
+          <li>Which parts are simplified compared with real immunity?</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function LearnTab() {
+  const [activeSlide, setActiveSlide] = useState(0);
+  /** @type {React.RefObject<HTMLDivElement>} */
+  const containerRef = useRef(null);
+  /** @type {React.MutableRefObject<(HTMLDivElement | null)[]>} */
+  const slideRefs = useRef([]);
+
+  const slides = [
+    <Slide1 key={0} />,
+    <Slide2 key={1} />,
+    <Slide3 key={2} />,
+    <Slide4 key={3} />,
+    <Slide5 key={4} />,
+    <Slide6 key={5} />,
+    <Slide7 key={6} />,
+    <Slide8 key={7} />,
+    <Slide9 key={8} />,
+  ];
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const index = slideRefs.current.indexOf(/** @type {HTMLDivElement} */ (entry.target));
+            if (index !== -1) setActiveSlide(index);
+          }
+        });
+      },
+      { root: container, threshold: 0.5 }
+    );
+    slideRefs.current.forEach((slide) => slide && observer.observe(slide));
+    return () => observer.disconnect();
+  }, []);
+
+  /** @param {number} index */
+  const scrollToSlide = (index) => {
+    slideRefs.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  return (
+    <div className="relative">
+      <div
+        ref={containerRef}
+        className="h-[calc(100vh-162px)] snap-y snap-mandatory overflow-y-scroll bg-white/82"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {slides.map((slide, i) => (
+          <div
+            key={i}
+            ref={(el) => { slideRefs.current[i] = el; }}
+            className="h-full snap-start snap-always"
+          >
+            {slide}
+          </div>
+        ))}
+      </div>
+
+      {/* Dot nav — overlaid on right edge */}
+      <div className="absolute right-4 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2">
+        {slideLabels.map((label, i) => (
+          <button
+            key={i}
+            onClick={() => scrollToSlide(i)}
+            title={label}
+            className={`h-2.5 w-2.5 rounded-full transition-all duration-200 ${
+              activeSlide === i ? 'scale-125 bg-primary' : 'bg-muted-foreground/40 hover:bg-muted-foreground'
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Prev/Next — overlaid on bottom edge */}
+      <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-4">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={activeSlide === 0}
+          onClick={() => scrollToSlide(activeSlide - 1)}
+          className="bg-white/80 backdrop-blur-sm"
+        >
+          ← Prev
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          {activeSlide + 1} / {slides.length}
+        </span>
+        <Button
+          size="sm"
+          disabled={activeSlide === slides.length - 1}
+          onClick={() => scrollToSlide(activeSlide + 1)}
+          className="backdrop-blur-sm"
+        >
+          Next →
+        </Button>
+      </div>
     </div>
   );
 }
@@ -302,7 +668,7 @@ export default function Home() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="learn" className="mt-6">
+          <TabsContent value="learn" className="mt-2 -mx-4 md:-mx-8">
             <LearnTab />
           </TabsContent>
           <TabsContent value="cells" className="mt-6">

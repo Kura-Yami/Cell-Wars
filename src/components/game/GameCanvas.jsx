@@ -1,11 +1,18 @@
+// @ts-nocheck
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
   createGameState,
   getLeaderboard,
+  initGameImages,
   mapRoomPlayerToGamePlayer,
   renderGame,
   updateGameState,
 } from '@/lib/gameEngine';
+import imgWhiteBloodCell from '@/Images/Whiteblood cell.png';
+import imgRedBloodCell from '@/Images/RedBloodCell.png';
+import imgSingleBacteria from '@/Images/Single_Bacteria_cell.png';
+import imgVirus from '@/Images/Virus.png';
+import imgCancerCell from '@/Images/Cancercell.png';
 import { leaveRoomPlayer, subscribeToRoomPlayers, updateRoomPlayerState } from '@/api/gameRooms';
 import Leaderboard from './Leaderboard';
 import ScoreDisplay from './ScoreDisplay';
@@ -22,6 +29,16 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId 
   const [leaderboard, setLeaderboard] = useState([]);
   const [score, setScore] = useState(0);
   const [gameState, setGameState] = useState(null);
+
+  useEffect(() => {
+    initGameImages({
+      wbc: imgWhiteBloodCell,
+      rbc: imgRedBloodCell,
+      bacteria: imgSingleBacteria,
+      virus: imgVirus,
+      cancer: imgCancerCell,
+    });
+  }, []);
 
   const markPlayerLeft = useCallback(async () => {
     if (!playerId || isLeavingRef.current) {
