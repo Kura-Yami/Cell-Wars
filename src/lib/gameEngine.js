@@ -80,17 +80,14 @@ function createVirus() {
 
 // --- Game State ---
 
-export function createGameState(playerName, existingPlayers = [], playerTeam = 'defender', playerRole = 'wbc') {
+export function createGameState(playerName, existingPlayers = [], playerTeam = 'defender', playerRole = 'wbc', noAI = false) {
   const redCells = Array.from({ length: RED_CELL_COUNT }, createRedCell);
   const bacteria = Array.from({ length: BACTERIA_COUNT }, createBacterium);
   const viruses = Array.from({ length: VIRUS_COUNT }, createVirus);
 
-  // Create AI mock players if less than 3 total
-  // MULTIPLAYER TODO: In real multiplayer, other players would join via real-time sync
   const aiPlayers = [];
   const aiNames = ['Neutrophil-X', 'T-Cell Alpha', 'Macrophage-9', 'B-Cell Pro'];
-  const totalOthers = existingPlayers.length;
-  const aiCount = Math.max(0, 3 - totalOthers);
+  const aiCount = noAI ? 0 : Math.max(0, 3 - existingPlayers.length);
   for (let i = 0; i < aiCount; i++) {
     aiPlayers.push({
       id: `ai_${i}`,

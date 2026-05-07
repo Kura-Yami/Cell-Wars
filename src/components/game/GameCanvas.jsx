@@ -379,8 +379,7 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
 
   // Initialize game state
   useEffect(() => {
-    const existingPlayerSlots = roomId ? Array.from({ length: 3 }) : players;
-    gameStateRef.current = createGameState(playerName, existingPlayerSlots, playerTeam, playerRole);
+    gameStateRef.current = createGameState(playerName, players, playerTeam, playerRole, !!roomId);
     if (playerId) {
       gameStateRef.current.player.id = playerId;
     }
@@ -509,7 +508,7 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
           const role = gameStateRef.current.funFactTrigger;
           gameStateRef.current.funFactTrigger = null;
           const now = performance.now();
-          if (now - lastFactTimeRef.current > 3000) {
+          if (now - lastFactTimeRef.current > 5000) {
             lastFactTimeRef.current = now;
             const facts = FUN_FACTS[role] || FUN_FACTS.wbc;
             setFunFact(facts[Math.floor(Math.random() * facts.length)]);
