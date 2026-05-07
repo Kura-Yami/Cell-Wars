@@ -4,6 +4,7 @@ import { createId } from '@/lib/randomId'
 const MOCK_ROOMS_KEY = 'cell-wars:mock-rooms'
 const REQUEST_TIMEOUT_MS = 8000
 let supportsExtendedPlayerState = true
+const roomPlayerChannels = new Map()
 
 export function createGameCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -348,6 +349,59 @@ export async function leaveRoomPlayer(playerId) {
   return data
 }
 
+export async function consumeRoomPlayer(roomId, victimPlayerId, event = {}) {
+  if (!victimPlayerId) {
+    return null
+  }
+
+  const consumptionEvent = {
+    room_id: roomId,
+    victim_id: victimPlayerId,
+    attacker_id: event.attacker_id,
+    attacker_name: event.attacker_name,
+    score_gain: event.score_gain || 0,
+    radius_gain: event.radius_gain || 0,
+    consumed_at: Date.now(),
+  }
+
+  if (!supabase) {
+    const rooms = readMockRooms()
+    const roomEntry = Object.entries(rooms).find(([, room]) =>
+      room.players?.some((player) => player.id === victimPlayerId)
+    )
+
+    if (!roomEntry) {
+      return null
+    }
+
+    const [code, room] = roomEntry
+    room.players = room.players.map((player) =>
+      player.id === victimPlayerId ? { ...player, is_eliminated: true } : player
+    )
+    rooms[code] = room
+    writeMockRooms(rooms)
+    return room.players.find((player) => player.id === victimPlayerId)
+  }
+
+  await broadcastRoomPlayerConsumed(roomId, consumptionEvent)
+
+  const { data, error } = await withTimeout(
+    supabase
+      .from('room_players')
+      .update({ is_eliminated: true })
+      .eq('id', victimPlayerId)
+      .select()
+      .single(),
+    'Supabase player consume timed out'
+  )
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 export async function updateRoomPlayerState(playerId, playerState) {
   if (!playerId) {
     return null
@@ -414,6 +468,48 @@ export async function updateRoomPlayerState(playerId, playerState) {
   return data
 }
 
+export async function broadcastRoomPlayerState(roomId, playerState) {
+  if (!supabase || !roomId) {
+    return null
+  }
+
+  const channel = roomPlayerChannels.get(roomId)
+  if (!channel) {
+    return null
+  }
+
+  return channel.send({
+    type: 'broadcast',
+    event: 'player_state',
+    payload: {
+      ...playerState,
+      room_id: roomId,
+      sent_at: Date.now(),
+    },
+  })
+}
+
+export async function broadcastRoomPlayerConsumed(roomId, event) {
+  if (!supabase || !roomId) {
+    return null
+  }
+
+  const channel = roomPlayerChannels.get(roomId)
+  if (!channel) {
+    return null
+  }
+
+  return channel.send({
+    type: 'broadcast',
+    event: 'player_consumed',
+    payload: {
+      ...event,
+      room_id: roomId,
+      consumed_at: event.consumed_at || Date.now(),
+    },
+  })
+}
+
 export async function startGameRoom(roomIdOrCode) {
   const rooms = readMockRooms()
   const normalizedCode = roomIdOrCode?.toUpperCase?.()
@@ -452,16 +548,50 @@ export async function startGameRoom(roomIdOrCode) {
   return data
 }
 
-export function subscribeToRoomPlayers(roomId, onPlayersChange) {
+export function subscribeToRoomPlayers(roomId, onPlayersChange, options = {}) {
   if (!supabase) {
     return () => {}
   }
 
   let isActive = true
   let latestPlayers = []
+  const livePlayerStateById = new Map()
 
   const publishPlayers = () => {
     onPlayersChange([...latestPlayers])
+  }
+
+  const mergePlayer = (changedPlayer, rememberLiveState = false) => {
+    if (!changedPlayer || changedPlayer.room_id !== roomId) {
+      refreshPlayers()
+      return
+    }
+
+    if (changedPlayer.is_eliminated) {
+      latestPlayers = latestPlayers.filter((player) => player.id !== changedPlayer.id)
+      livePlayerStateById.delete(changedPlayer.id)
+      return
+    }
+
+    if (rememberLiveState) {
+      livePlayerStateById.set(changedPlayer.id, {
+        ...(livePlayerStateById.get(changedPlayer.id) || {}),
+        ...changedPlayer,
+      })
+    }
+
+    const playerWithLiveState = {
+      ...changedPlayer,
+      ...(livePlayerStateById.get(changedPlayer.id) || {}),
+    }
+    const playerIndex = latestPlayers.findIndex((player) => player.id === changedPlayer.id)
+    if (playerIndex >= 0) {
+      latestPlayers = latestPlayers.map((player, index) =>
+        index === playerIndex ? { ...player, ...playerWithLiveState } : player
+      )
+    } else {
+      latestPlayers = [...latestPlayers, playerWithLiveState]
+    }
   }
 
   const mergePlayerChange = (payload) => {
@@ -472,17 +602,11 @@ export function subscribeToRoomPlayers(roomId, onPlayersChange) {
       return
     }
 
-    if (payload.eventType === 'DELETE' || changedPlayer.is_eliminated) {
+    if (payload.eventType === 'DELETE') {
       latestPlayers = latestPlayers.filter((player) => player.id !== changedPlayer.id)
+      livePlayerStateById.delete(changedPlayer.id)
     } else {
-      const playerIndex = latestPlayers.findIndex((player) => player.id === changedPlayer.id)
-      if (playerIndex >= 0) {
-        latestPlayers = latestPlayers.map((player, index) =>
-          index === playerIndex ? { ...player, ...changedPlayer } : player
-        )
-      } else {
-        latestPlayers = [...latestPlayers, changedPlayer]
-      }
+      mergePlayer(changedPlayer)
     }
 
     if (isActive) {
@@ -490,11 +614,36 @@ export function subscribeToRoomPlayers(roomId, onPlayersChange) {
     }
   }
 
+  const mergeBroadcastPlayerState = ({ payload }) => {
+    mergePlayer(payload, true)
+
+    if (isActive) {
+      publishPlayers()
+    }
+  }
+
+  const handlePlayerConsumed = ({ payload }) => {
+    if (!payload || payload.room_id !== roomId) {
+      return
+    }
+
+    latestPlayers = latestPlayers.filter((player) => player.id !== payload.victim_id)
+    livePlayerStateById.delete(payload.victim_id)
+
+    if (isActive) {
+      publishPlayers()
+      options.onPlayerConsumed?.(payload)
+    }
+  }
+
   const refreshPlayers = () => {
     getRoomPlayers(roomId)
       .then((players) => {
         if (isActive) {
-          latestPlayers = players
+          latestPlayers = players.map((player) => ({
+            ...player,
+            ...(livePlayerStateById.get(player.id) || {}),
+          }))
           publishPlayers()
         }
       })
@@ -507,6 +656,8 @@ export function subscribeToRoomPlayers(roomId, onPlayersChange) {
 
   const channel = supabase
     .channel(`room_players:${roomId}`)
+    .on('broadcast', { event: 'player_state' }, mergeBroadcastPlayerState)
+    .on('broadcast', { event: 'player_consumed' }, handlePlayerConsumed)
     .on(
       'postgres_changes',
       {
@@ -519,11 +670,16 @@ export function subscribeToRoomPlayers(roomId, onPlayersChange) {
     )
     .subscribe()
 
+  roomPlayerChannels.set(roomId, channel)
+
   const pollInterval = setInterval(refreshPlayers, 750)
 
   return () => {
     isActive = false
     clearInterval(pollInterval)
+    if (roomPlayerChannels.get(roomId) === channel) {
+      roomPlayerChannels.delete(roomId)
+    }
     supabase.removeChannel(channel)
   }
 }

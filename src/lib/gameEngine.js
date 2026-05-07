@@ -148,6 +148,7 @@ export function createGameState(playerName, existingPlayers = [], playerTeam = '
     viruses,
     cancerCells,
     duplicates: [],
+    pendingPlayerConsumptions: [],
     funFactTrigger: null,
     worldSize: WORLD_SIZE,
     camera: { x: 0, y: 0 },
@@ -212,6 +213,7 @@ export function mapRoomPlayerToGamePlayer(player, index = 0) {
 export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
   const { player } = state;
   state.time += dt;
+  state.pendingPlayerConsumptions ||= [];
 
   // --- Ability timers ---
   if (player.abilityCooldown > 0) player.abilityCooldown = Math.max(0, player.abilityCooldown - dt);
@@ -414,12 +416,13 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
       state.cancerCells.forEach(c => checkEnemyCollision(c, 1.0, 100));
     }
 
-    // Player vs player: cross-team, score-based eating
+    // Player vs player: cross-team, size/score-based eating
     state.otherPlayers.forEach(other => {
       // Determine teams — wbc role = defender, everything else = attacker
       const otherIsDefender = other.team === 'defender' || other.role === 'wbc';
       const localIsDefender = state.playerTeam === 'defender';
       if (otherIsDefender === localIsDefender) return; // same team, immune
+      if (other.is_eliminated || other.consumedByLocal) return;
 
       // Tick this player's eat cooldown
       if (other.eatCooldown > 0) { other.eatCooldown = Math.max(0, other.eatCooldown - dt); return; }
@@ -427,10 +430,13 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
       const d = Math.hypot(player.x - other.x, player.y - other.y);
       if (d >= player.radius + other.radius * 0.7) return;
 
-      if (player.score > other.score) {
-        // Local player eats the other — gain 25% of their score and size
-        const scoreGain = Math.floor(other.score * 0.25);
-        const radiusGain = other.radius * 0.25;
+      const playerPower = player.radius + player.score * 0.03;
+      const otherPower = other.radius + other.score * 0.03;
+
+      if (playerPower > otherPower * 1.08) {
+        // Local player consumes the other and gains part of their mass.
+        const scoreGain = Math.max(25, Math.floor(other.score * 0.35));
+        const radiusGain = Math.max(4, other.radius * 0.3);
         player.score += scoreGain;
         player.radius = Math.min(player.radius + radiusGain, 120);
         player.maxRadius = Math.max(player.maxRadius || 0, player.radius);
@@ -441,11 +447,20 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
           other.radius = Math.max(MIN_PLAYER_RADIUS, other.radius - radiusGain);
           other.x = Math.random() * WORLD_SIZE;
           other.y = Math.random() * WORLD_SIZE;
+        } else {
+          other.is_eliminated = true;
+          other.consumedByLocal = true;
+          state.pendingPlayerConsumptions.push({
+            victimId: other.id,
+            victimName: other.name,
+            scoreGain,
+            radiusGain,
+          });
         }
-      } else if (other.score > player.score && player.hitCooldown <= 0 && !(player.abilityActive && player.role === 'cancer')) {
-        // Other player eats local — lose 25% score and size
-        const scoreLoss = Math.floor(player.score * 0.25);
-        const radiusLoss = player.radius * 0.25;
+      } else if (otherPower > playerPower * 1.08 && player.hitCooldown <= 0 && !(player.abilityActive && player.role === 'cancer')) {
+        // Other player is stronger here; local player takes a warning bite while the remote client confirms consumption.
+        const scoreLoss = Math.floor(player.score * 0.2);
+        const radiusLoss = player.radius * 0.2;
         player.score = Math.max(0, player.score - scoreLoss);
         player.radius -= radiusLoss;
         player.hitCooldown = 1.5;
@@ -458,6 +473,7 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
         }
       }
     });
+    state.otherPlayers = state.otherPlayers.filter(other => !other.consumedByLocal);
   }
 
   // --- Duplicate clones (bacteria ability) ---
@@ -581,6 +597,7 @@ export function renderGame(ctx, state, canvasW, canvasH) {
 
   // Draw other players (AI + remote)
   state.otherPlayers.forEach(p => {
+    if (p.is_eliminated) return;
     const sx = p.x - camera.x;
     const sy = p.y - camera.y;
     if (sx < -100 || sx > canvasW + 100 || sy < -100 || sy > canvasH + 100) return;
@@ -955,6 +972,7 @@ export function renderMinimap(ctx, state, mapSize) {
 
   // Other players
   state.otherPlayers.forEach(p => {
+    if (p.is_eliminated) return;
     ctx.fillStyle = p.color || '#4FC3F7';
     ctx.beginPath();
     ctx.arc(p.x * scale, p.y * scale, 3, 0, Math.PI * 2);
@@ -976,7 +994,9 @@ export function renderMinimap(ctx, state, mapSize) {
 export function getLeaderboard(state) {
   const all = [
     { name: state.player.name, score: state.player.score, isLocal: true },
-    ...state.otherPlayers.map(p => ({ name: p.name, score: p.score, isLocal: false })),
+    ...state.otherPlayers
+      .filter(p => !p.is_eliminated)
+      .map(p => ({ name: p.name, score: p.score, isLocal: false })),
   ];
   return all.sort((a, b) => b.score - a.score);
 }

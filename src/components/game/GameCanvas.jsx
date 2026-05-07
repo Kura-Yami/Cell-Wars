@@ -16,7 +16,13 @@ import imgRedBloodCell from '@/Images/RedBloodCell.png';
 import imgSingleBacteria from '@/Images/Single_Bacteria_cell.png';
 import imgVirus from '@/Images/Virus.png';
 import imgCancerCell from '@/Images/Cancercell.png';
-import { leaveRoomPlayer, subscribeToRoomPlayers, updateRoomPlayerState } from '@/api/gameRooms';
+import {
+  broadcastRoomPlayerState,
+  consumeRoomPlayer,
+  leaveRoomPlayer,
+  subscribeToRoomPlayers,
+  updateRoomPlayerState,
+} from '@/api/gameRooms';
 import Leaderboard from './Leaderboard';
 import ScoreDisplay from './ScoreDisplay';
 import Minimap from './Minimap';
@@ -24,6 +30,7 @@ import Minimap from './Minimap';
 const PLAYER_SYNC_INTERVAL_MS = 120;
 const PLAYER_SYNC_DISTANCE_THRESHOLD = 2;
 const PLAYER_SYNC_ANGLE_THRESHOLD = 0.04;
+const PVP_RESPAWN_RADIUS = 20;
 
 const FUN_FACTS = {
   wbc: [
@@ -338,7 +345,7 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
   }, [playerId]);
 
   const publishPlayerState = useCallback((force = false) => {
-    if (!roomId || !playerId || isLeavingRef.current || syncInFlightRef.current) {
+    if (!roomId || !playerId || isLeavingRef.current) {
       return;
     }
 
@@ -352,18 +359,53 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
       return;
     }
 
+    lastPublishedStateRef.current = snapshot;
+
+    broadcastRoomPlayerState(roomId, {
+      id: playerId,
+      player_name: playerName,
+      ...snapshot,
+    }).catch((error) => {
+      console.error('Failed to broadcast player state', error);
+    });
+
+    if (syncInFlightRef.current) {
+      return;
+    }
+
     syncInFlightRef.current = true;
     updateRoomPlayerState(playerId, snapshot)
-      .then(() => {
-        lastPublishedStateRef.current = snapshot;
-      })
       .catch((error) => {
         console.error('Failed to sync player state', error);
       })
       .finally(() => {
         syncInFlightRef.current = false;
       });
-  }, [playerId, playerTeam, roomId]);
+  }, [playerId, playerName, playerTeam, roomId]);
+
+  const consumePendingPlayers = useCallback(() => {
+    const state = gameStateRef.current;
+    const pendingConsumptions = state?.pendingPlayerConsumptions;
+
+    if (!roomId || !playerId || !pendingConsumptions?.length) {
+      return;
+    }
+
+    state.pendingPlayerConsumptions = [];
+
+    pendingConsumptions.forEach((consumption) => {
+      consumeRoomPlayer(roomId, consumption.victimId, {
+        attacker_id: playerId,
+        attacker_name: playerName,
+        score_gain: consumption.scoreGain,
+        radius_gain: consumption.radiusGain,
+      }).catch((error) => {
+        console.error('Failed to consume remote player', error);
+      });
+    });
+
+    publishPlayerState(true);
+  }, [playerId, playerName, publishPlayerState, roomId]);
 
   // Initialize game state
   useEffect(() => {
@@ -389,23 +431,58 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
 
     window.addEventListener('pagehide', handlePageHide);
 
-    const unsubscribe = subscribeToRoomPlayers(roomId, (roomPlayers) => {
-      const state = gameStateRef.current;
-      if (!state) return;
+    const unsubscribe = subscribeToRoomPlayers(
+      roomId,
+      (roomPlayers) => {
+        const state = gameStateRef.current;
+        if (!state) return;
 
-      state.otherPlayers = roomPlayers
-        .filter((player) => player.id !== playerId && !player.is_eliminated)
-        .map(mapRoomPlayerToGamePlayer);
+        state.otherPlayers = roomPlayers
+          .filter((player) => player.id !== playerId && !player.is_eliminated)
+          .map(mapRoomPlayerToGamePlayer);
 
-      setLeaderboard(getLeaderboard(state));
-      setGameState({ ...state });
-    });
+        setLeaderboard(getLeaderboard(state));
+        setGameState({ ...state });
+      },
+      {
+        onPlayerConsumed: (event) => {
+          if (event.victim_id !== playerId || event.attacker_id === playerId) {
+            return;
+          }
+
+          const state = gameStateRef.current;
+          const player = state?.player;
+          if (!player || (!player.alive && player.quizPending)) {
+            return;
+          }
+
+          const savedRadius = player.maxRadius || player.radius || (player.role === 'wbc' ? 50 : PVP_RESPAWN_RADIUS);
+          player.alive = false;
+          player.quizPending = true;
+          player.preDeathRadius = savedRadius;
+          player.respawnTimer = 60;
+          player.radius = PVP_RESPAWN_RADIUS;
+          player.score = Math.max(0, player.score - Math.max(25, event.score_gain || 0));
+          player.hitCooldown = 1.5;
+
+          setScore(player.score);
+          setLeaderboard(getLeaderboard(state));
+          setGameState({ ...state });
+          publishPlayerState(true);
+        },
+      }
+    );
+    const initialSyncTimers = [
+      window.setTimeout(() => publishPlayerState(true), 250),
+      window.setTimeout(() => publishPlayerState(true), 1000),
+    ];
 
     return () => {
       window.removeEventListener('pagehide', handlePageHide);
+      initialSyncTimers.forEach((timer) => window.clearTimeout(timer));
       unsubscribe();
     };
-  }, [roomId, playerId, markPlayerLeft]);
+  }, [roomId, playerId, markPlayerLeft, publishPlayerState]);
 
   // Handle mouse/touch movement
   const handleMouseMove = useCallback((e) => {
@@ -454,6 +531,7 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
           canvas.height,
           dt
         );
+        consumePendingPlayers();
         renderGame(ctx, gameStateRef.current, canvas.width, canvas.height);
 
         // Fun fact banner
@@ -507,7 +585,7 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [playerId, publishPlayerState, roomId]);
+  }, [consumePendingPlayers, playerId, publishPlayerState, roomId]);
 
   const handleQuizAnswer = useCallback((isCorrect) => {
     setActiveQuiz(null);
