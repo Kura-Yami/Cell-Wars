@@ -21,6 +21,10 @@ import Leaderboard from './Leaderboard';
 import ScoreDisplay from './ScoreDisplay';
 import Minimap from './Minimap';
 
+const PLAYER_SYNC_INTERVAL_MS = 120;
+const PLAYER_SYNC_DISTANCE_THRESHOLD = 2;
+const PLAYER_SYNC_ANGLE_THRESHOLD = 0.04;
+
 const FUN_FACTS = {
   wbc: [
     'White blood cells can squeeze through tiny gaps in blood vessel walls to reach infections!',
@@ -265,6 +269,34 @@ function AbilityButton({ role, cooldown, active, onActivate }) {
   );
 }
 
+function getPlayerSyncSnapshot(player, team) {
+  return {
+    x: player.x,
+    y: player.y,
+    angle: player.angle || 0,
+    score: Math.round(player.score),
+    size: player.radius,
+    is_eliminated: !player.alive,
+    role: player.role,
+    team,
+  };
+}
+
+function shouldPublishPlayerState(previous, next) {
+  if (!previous) return true;
+
+  const moved = Math.hypot(next.x - previous.x, next.y - previous.y);
+  return (
+    moved > PLAYER_SYNC_DISTANCE_THRESHOLD ||
+    Math.abs(next.angle - previous.angle) > PLAYER_SYNC_ANGLE_THRESHOLD ||
+    next.score !== previous.score ||
+    Math.abs(next.size - previous.size) > 0.4 ||
+    next.is_eliminated !== previous.is_eliminated ||
+    next.role !== previous.role ||
+    next.team !== previous.team
+  );
+}
+
 export default function GameCanvas({ playerName, players = [], roomId, playerId, playerTeam = 'defender', playerRole = 'wbc' }) {
   const canvasRef = useRef(null);
   const gameStateRef = useRef(null);
@@ -273,6 +305,8 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
   const isLeavingRef = useRef(false);
   const lastTimeRef = useRef(0);
   const lastSyncRef = useRef(0);
+  const lastPublishedStateRef = useRef(null);
+  const syncInFlightRef = useRef(false);
   const [leaderboard, setLeaderboard] = useState([]);
   const [score, setScore] = useState(0);
   const [gameState, setGameState] = useState(null);
@@ -303,6 +337,34 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
     await leaveRoomPlayer(playerId);
   }, [playerId]);
 
+  const publishPlayerState = useCallback((force = false) => {
+    if (!roomId || !playerId || isLeavingRef.current || syncInFlightRef.current) {
+      return;
+    }
+
+    const player = gameStateRef.current?.player;
+    if (!player) {
+      return;
+    }
+
+    const snapshot = getPlayerSyncSnapshot(player, playerTeam);
+    if (!force && !shouldPublishPlayerState(lastPublishedStateRef.current, snapshot)) {
+      return;
+    }
+
+    syncInFlightRef.current = true;
+    updateRoomPlayerState(playerId, snapshot)
+      .then(() => {
+        lastPublishedStateRef.current = snapshot;
+      })
+      .catch((error) => {
+        console.error('Failed to sync player state', error);
+      })
+      .finally(() => {
+        syncInFlightRef.current = false;
+      });
+  }, [playerId, playerTeam, roomId]);
+
   // Initialize game state
   useEffect(() => {
     const existingPlayerSlots = roomId ? Array.from({ length: 3 }) : players;
@@ -310,8 +372,11 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
     if (playerId) {
       gameStateRef.current.player.id = playerId;
     }
+    lastPublishedStateRef.current = null;
+    syncInFlightRef.current = false;
     setGameState(gameStateRef.current);
-  }, [playerName, playerId, roomId]);
+    publishPlayerState(true);
+  }, [playerName, playerId, playerRole, playerTeam, players, publishPlayerState, roomId]);
 
   useEffect(() => {
     if (!roomId || !playerId) return undefined;
@@ -339,16 +404,6 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
     return () => {
       window.removeEventListener('pagehide', handlePageHide);
       unsubscribe();
-    };
-  }, [roomId, playerId, markPlayerLeft]);
-
-  useEffect(() => {
-    if (!roomId || !playerId) return undefined;
-
-    return () => {
-      markPlayerLeft().catch((error) => {
-        console.error('Failed to leave game during unmount', error);
-      });
     };
   }, [roomId, playerId, markPlayerLeft]);
 
@@ -416,19 +471,9 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
           }
         }
 
-        if (!isLeavingRef.current && roomId && playerId && timestamp - lastSyncRef.current > 250) {
+        if (!isLeavingRef.current && roomId && playerId && timestamp - lastSyncRef.current > PLAYER_SYNC_INTERVAL_MS) {
           lastSyncRef.current = timestamp;
-          const { player } = gameStateRef.current;
-          updateRoomPlayerState(playerId, {
-            x: player.x,
-            y: player.y,
-            score: player.score,
-            size: player.radius,
-            is_eliminated: !player.alive,
-            role: player.role,
-          }).catch((error) => {
-            console.error('Failed to sync player state', error);
-          });
+          publishPlayerState();
         }
 
         // Update React state periodically (not every frame for performance)
@@ -462,7 +507,7 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, []);
+  }, [playerId, publishPlayerState, roomId]);
 
   const handleQuizAnswer = useCallback((isCorrect) => {
     setActiveQuiz(null);

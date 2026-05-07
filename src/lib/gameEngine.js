@@ -189,6 +189,7 @@ function getPlayerColor(id, index = 0) {
 }
 
 export function mapRoomPlayerToGamePlayer(player, index = 0) {
+  const role = player.role || 'wbc';
   return {
     id: player.id,
     userId: player.user_id,
@@ -197,7 +198,9 @@ export function mapRoomPlayerToGamePlayer(player, index = 0) {
     y: Number(player.y) || WORLD_SIZE / 2,
     radius: Number(player.size) || MIN_PLAYER_RADIUS,
     score: Number(player.score) || 0,
-    role: player.role || 'wbc',
+    angle: Number(player.angle) || 0,
+    role,
+    team: player.team || (role === 'wbc' ? 'defender' : 'attacker'),
     isAI: false,
     isRemote: true,
     color: getPlayerColor(player.id, index),
@@ -502,7 +505,7 @@ export function renderGame(ctx, state, canvasW, canvasH) {
   const { camera, time } = state;
 
   // Clear
-  ctx.fillStyle = '#fce4ec';
+  ctx.fillStyle = '#090002';
   ctx.fillRect(0, 0, canvasW, canvasH);
 
   // Draw bloodstream background
@@ -553,9 +556,9 @@ export function renderGame(ctx, state, canvasW, canvasH) {
       const fontSize = Math.max(10, Math.min(14, d.radius * 0.5));
       ctx.font = `bold ${fontSize}px Fredoka, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#333';
-      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-      ctx.lineWidth = 3;
+      ctx.fillStyle = '#fff8f0';
+      ctx.strokeStyle = 'rgba(20,0,0,0.85)';
+      ctx.lineWidth = 4;
       ctx.strokeText(d.name, sx, sy - d.radius - 8);
       ctx.fillText(d.name, sx, sy - d.radius - 8);
       ctx.restore();
@@ -581,7 +584,7 @@ export function renderGame(ctx, state, canvasW, canvasH) {
     const sx = p.x - camera.x;
     const sy = p.y - camera.y;
     if (sx < -100 || sx > canvasW + 100 || sy < -100 || sy > canvasH + 100) return;
-    drawPlayerCharacter(ctx, sx, sy, p.radius, p.color || '#4FC3F7', time, p.name, p.role || 'wbc');
+    drawPlayerCharacter(ctx, sx, sy, p.radius, p.color || '#4FC3F7', time, p.name, p.role || 'wbc', false, p.angle ?? null);
   });
 
   // Draw local player
@@ -629,6 +632,28 @@ function drawImgProp(ctx, img, cx, cy, maxSize) {
 }
 
 function drawBackground(ctx, camera, w, h, time) {
+  const gradient = ctx.createRadialGradient(w * 0.48, h * 0.42, 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.75);
+  gradient.addColorStop(0, '#3a0508');
+  gradient.addColorStop(0.45, '#1d0205');
+  gradient.addColorStop(1, '#050001');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.lineWidth = 34;
+  ctx.lineCap = 'round';
+  for (let i = -2; i < 6; i++) {
+    const y = ((i * 180 + time * 18) % (h + 360)) - 180;
+    const xOffset = ((camera.x * 0.035) + i * 61) % 180;
+    ctx.beginPath();
+    ctx.moveTo(-120, y);
+    ctx.bezierCurveTo(w * 0.25 + xOffset, y - 120, w * 0.62 - xOffset, y + 120, w + 120, y - 20);
+    ctx.strokeStyle = i % 2 === 0 ? '#5b0b12' : '#7a1019';
+    ctx.stroke();
+  }
+  ctx.restore();
+
   // Subtle flowing particles
   ctx.save();
   for (let i = 0; i < 40; i++) {
@@ -637,14 +662,14 @@ function drawBackground(ctx, camera, w, h, time) {
     const y = ((seed * 13.1 + time * 8) % (h + 200)) - 100;
     ctx.beginPath();
     ctx.arc(x, y, 2 + (i % 3), 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(239, 154, 154, ${0.15 + (i % 5) * 0.03})`;
+    ctx.fillStyle = `rgba(255, 86, 86, ${0.12 + (i % 5) * 0.025})`;
     ctx.fill();
   }
   ctx.restore();
 }
 
 function drawGrid(ctx, camera, w, h) {
-  ctx.strokeStyle = 'rgba(200, 150, 150, 0.08)';
+  ctx.strokeStyle = 'rgba(255, 82, 82, 0.045)';
   ctx.lineWidth = 1;
   const gridSize = 80;
   const startX = -(camera.x % gridSize);
@@ -664,7 +689,7 @@ function drawGrid(ctx, camera, w, h) {
 }
 
 function drawBoundary(ctx, camera, w, h) {
-  ctx.strokeStyle = 'rgba(180, 60, 60, 0.3)';
+  ctx.strokeStyle = 'rgba(255, 75, 75, 0.28)';
   ctx.lineWidth = 4;
   ctx.strokeRect(-camera.x, -camera.y, WORLD_SIZE, WORLD_SIZE);
 }
@@ -843,9 +868,9 @@ function drawPlayerCharacter(ctx, x, y, r, color, time, name, role = 'wbc', isLo
     if (name) {
       ctx.font = `bold ${Math.max(10, Math.min(14, r * 0.5))}px Fredoka, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = isLocal ? '#1a1a2e' : '#333';
-      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-      ctx.lineWidth = 3;
+      ctx.fillStyle = '#fff8f0';
+      ctx.strokeStyle = isLocal ? 'rgba(30,0,0,0.95)' : 'rgba(20,0,0,0.85)';
+      ctx.lineWidth = 4;
       ctx.strokeText(name, x, y - r - 8);
       ctx.fillText(name, x, y - r - 8);
     }
@@ -893,9 +918,9 @@ function drawPlayerCharacter(ctx, x, y, r, color, time, name, role = 'wbc', isLo
   if (name) {
     ctx.font = `bold ${Math.max(10, Math.min(14, r * 0.5))}px Fredoka, sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = isLocal ? '#1a1a2e' : '#333';
-    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-    ctx.lineWidth = 3;
+    ctx.fillStyle = '#fff8f0';
+    ctx.strokeStyle = isLocal ? 'rgba(30,0,0,0.95)' : 'rgba(20,0,0,0.85)';
+    ctx.lineWidth = 4;
     ctx.strokeText(name, x, y - r - 8);
     ctx.fillText(name, x, y - r - 8);
   }
@@ -906,9 +931,9 @@ function drawPlayerCharacter(ctx, x, y, r, color, time, name, role = 'wbc', isLo
 
 export function renderMinimap(ctx, state, mapSize) {
   const scale = mapSize / WORLD_SIZE;
-  ctx.fillStyle = 'rgba(30, 20, 40, 0.85)';
+  ctx.fillStyle = 'rgba(18, 0, 3, 0.9)';
   ctx.fillRect(0, 0, mapSize, mapSize);
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.strokeStyle = 'rgba(255,120,120,0.24)';
   ctx.lineWidth = 1;
   ctx.strokeRect(0, 0, mapSize, mapSize);
 

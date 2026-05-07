@@ -3,6 +3,7 @@ import { createId } from '@/lib/randomId'
 
 const MOCK_ROOMS_KEY = 'cell-wars:mock-rooms'
 const REQUEST_TIMEOUT_MS = 8000
+let supportsExtendedPlayerState = true
 
 export function createGameCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -110,6 +111,14 @@ function getSupabaseRoomErrorMessage(error, action) {
   }
 
   return message
+}
+
+function isMissingPlayerStateColumn(error) {
+  const message = error?.message || ''
+  return (
+    error?.code === 'PGRST204' ||
+    (message.includes('Could not find') && message.includes('room_players') && message.includes('column'))
+  )
 }
 
 export async function createGameRoom({ hostUserId, hostName, preferLocal = false }) {
@@ -363,22 +372,40 @@ export async function updateRoomPlayerState(playerId, playerState) {
     return room.players.find((player) => player.id === playerId)
   }
 
-  const { data, error } = await withTimeout(
-    supabase
-      .from('room_players')
-      .update({
-        x: playerState.x,
-        y: playerState.y,
-        score: playerState.score,
-        size: playerState.size,
-        is_eliminated: playerState.is_eliminated,
-        role: playerState.role,
-      })
-      .eq('id', playerId)
-      .select()
-      .single(),
-    'Supabase player state update timed out'
+  const baseState = {
+    x: playerState.x,
+    y: playerState.y,
+    score: playerState.score,
+    size: playerState.size,
+    is_eliminated: playerState.is_eliminated,
+  }
+  const extendedState = {
+    ...baseState,
+    role: playerState.role,
+    team: playerState.team,
+    angle: playerState.angle,
+    last_seen_at: new Date().toISOString(),
+  }
+
+  const updatePlayer = (payload) =>
+    withTimeout(
+      supabase
+        .from('room_players')
+        .update(payload)
+        .eq('id', playerId)
+        .select()
+        .single(),
+      'Supabase player state update timed out'
+    )
+
+  let { data, error } = await updatePlayer(
+    supportsExtendedPlayerState ? extendedState : baseState
   )
+
+  if (error && supportsExtendedPlayerState && isMissingPlayerStateColumn(error)) {
+    supportsExtendedPlayerState = false
+    ;({ data, error } = await updatePlayer(baseState))
+  }
 
   if (error) {
     throw error
@@ -431,11 +458,44 @@ export function subscribeToRoomPlayers(roomId, onPlayersChange) {
   }
 
   let isActive = true
+  let latestPlayers = []
+
+  const publishPlayers = () => {
+    onPlayersChange([...latestPlayers])
+  }
+
+  const mergePlayerChange = (payload) => {
+    const changedPlayer = payload.new || payload.record || payload.old
+
+    if (!changedPlayer || changedPlayer.room_id !== roomId) {
+      refreshPlayers()
+      return
+    }
+
+    if (payload.eventType === 'DELETE' || changedPlayer.is_eliminated) {
+      latestPlayers = latestPlayers.filter((player) => player.id !== changedPlayer.id)
+    } else {
+      const playerIndex = latestPlayers.findIndex((player) => player.id === changedPlayer.id)
+      if (playerIndex >= 0) {
+        latestPlayers = latestPlayers.map((player, index) =>
+          index === playerIndex ? { ...player, ...changedPlayer } : player
+        )
+      } else {
+        latestPlayers = [...latestPlayers, changedPlayer]
+      }
+    }
+
+    if (isActive) {
+      publishPlayers()
+    }
+  }
+
   const refreshPlayers = () => {
     getRoomPlayers(roomId)
       .then((players) => {
         if (isActive) {
-          onPlayersChange(players)
+          latestPlayers = players
+          publishPlayers()
         }
       })
       .catch((error) => {
@@ -455,11 +515,11 @@ export function subscribeToRoomPlayers(roomId, onPlayersChange) {
         table: 'room_players',
         filter: `room_id=eq.${roomId}`,
       },
-      refreshPlayers
+      mergePlayerChange
     )
     .subscribe()
 
-  const pollInterval = setInterval(refreshPlayers, 1500)
+  const pollInterval = setInterval(refreshPlayers, 750)
 
   return () => {
     isActive = false

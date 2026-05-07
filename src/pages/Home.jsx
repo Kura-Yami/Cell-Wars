@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from 'react';
 import imgWhiteBloodCell from '@/Images/Whiteblood cell.png';
 import imgRedBloodCell from '@/Images/RedBloodCell.png';
-import imgSingleBacteria from '@/Images/Single_Bacteria_cell.png';
 import gifBacteriadup from '@/Images/Bacteria_Duplication_vid.gif';
 import imgCancerCell from '@/Images/Cancercell.png';
 import imgVirus from '@/Images/Virus.png';

@@ -19,9 +19,19 @@ create table if not exists public.room_players (
   size numeric not null default 24,
   x numeric not null default 0,
   y numeric not null default 0,
+  angle numeric not null default 0,
+  role text not null default 'wbc',
+  team text not null default 'defender',
   is_eliminated boolean not null default false,
+  last_seen_at timestamptz not null default now(),
   joined_at timestamptz not null default now()
 );
+
+alter table if exists public.room_players
+  add column if not exists angle numeric not null default 0,
+  add column if not exists role text not null default 'wbc',
+  add column if not exists team text not null default 'defender',
+  add column if not exists last_seen_at timestamptz not null default now();
 
 alter table public.game_rooms enable row level security;
 alter table public.room_players enable row level security;
@@ -59,3 +69,19 @@ on public.room_players for update
 to authenticated
 using (true)
 with check (true);
+
+do $$
+begin
+  alter publication supabase_realtime add table public.game_rooms;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.room_players;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;

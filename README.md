@@ -34,3 +34,5 @@ Recommended path:
 Solo play and the learning tabs work as a normal published site. Cross-device hosted rooms need Supabase anonymous auth and the tables from `supabase/schema.sql` so phones and computers can share room state.
 
 In Supabase, enable anonymous sign-ins for the project. The app uses anonymous Supabase users so students do not need accounts, but rooms are still shared through the database.
+
+If multiplayer movement does not appear live after an update, rerun the latest `supabase/schema.sql` in the Supabase SQL editor. It adds the realtime player-state columns and registers the room tables with Supabase Realtime.
