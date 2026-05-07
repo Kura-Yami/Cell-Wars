@@ -27,14 +27,12 @@ export const ABILITY_CONFIG = {
   wbc:      { cooldown: 8,  duration: 3,  name: 'Speed Boost',  color: '#7C4DFF' },
   bacteria: { cooldown: 5,  duration: 0,  name: 'Duplicate',    color: '#66BB6A' },
   virus:    { cooldown: 15, duration: 3,  name: 'Growth Boost', color: '#FFD700' },
-  cancer:   { cooldown: 20, duration: 5,  name: 'Shield',       color: '#29B6F6' },
 };
 
 const WORLD_SIZE = 4000;
 const RED_CELL_COUNT = 300;
 const BACTERIA_COUNT = 8;
 const VIRUS_COUNT = 6;
-const CANCER_COUNT = 3;
 const BASE_SPEED = 3.5;
 const MIN_PLAYER_RADIUS = 20;
 const PLAYER_COLORS = ['#4FC3F7', '#81C784', '#FFB74D', '#CE93D8', '#F06292', '#64B5F6'];
@@ -80,26 +78,12 @@ function createVirus() {
   };
 }
 
-function createCancerCell() {
-  return {
-    x: Math.random() * WORLD_SIZE,
-    y: Math.random() * WORLD_SIZE,
-    radius: 45 + Math.random() * 20,
-    type: 'cancer',
-    vx: (Math.random() - 0.5) * 0.5,
-    vy: (Math.random() - 0.5) * 0.5,
-    speed: 0.4,
-    pulsePhase: Math.random() * Math.PI * 2,
-  };
-}
-
 // --- Game State ---
 
 export function createGameState(playerName, existingPlayers = [], playerTeam = 'defender', playerRole = 'wbc') {
   const redCells = Array.from({ length: RED_CELL_COUNT }, createRedCell);
   const bacteria = Array.from({ length: BACTERIA_COUNT }, createBacterium);
   const viruses = Array.from({ length: VIRUS_COUNT }, createVirus);
-  const cancerCells = Array.from({ length: CANCER_COUNT }, createCancerCell);
 
   // Create AI mock players if less than 3 total
   // MULTIPLAYER TODO: In real multiplayer, other players would join via real-time sync
@@ -146,7 +130,6 @@ export function createGameState(playerName, existingPlayers = [], playerTeam = '
     redCells,
     bacteria,
     viruses,
-    cancerCells,
     duplicates: [],
     pendingPlayerConsumptions: [],
     funFactTrigger: null,
@@ -366,19 +349,6 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
     v.y = Math.max(v.radius, Math.min(WORLD_SIZE - v.radius, v.y));
   });
 
-  // Cancer cells
-  state.cancerCells.forEach(c => {
-    if (Math.random() < 0.01) {
-      c.vx = (Math.random() - 0.5) * c.speed;
-      c.vy = (Math.random() - 0.5) * c.speed;
-    }
-    c.x += c.vx;
-    c.y += c.vy;
-    c.x = Math.max(c.radius, Math.min(WORLD_SIZE - c.radius, c.x));
-    c.y = Math.max(c.radius, Math.min(WORLD_SIZE - c.radius, c.y));
-    c.pulsePhase += dt * 2;
-  });
-
   // --- Player-Enemy collisions ---
   if (player.alive) {
     // If player is big enough, they eat the enemy. Otherwise they take damage.
@@ -395,8 +365,8 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
           // Respawn enemy
           enemy.x = Math.random() * WORLD_SIZE;
           enemy.y = Math.random() * WORLD_SIZE;
-        } else if (!(player.abilityActive && player.role === 'cancer')) {
-          // Player takes damage (cancer shield blocks this)
+        } else {
+          // Player takes damage
           player.radius -= enemy.radius * 0.1 * damageMultiplier;
           if (player.radius < MIN_PLAYER_RADIUS * 0.5) {
             player.alive = false;
@@ -413,7 +383,6 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
     if (state.playerTeam === 'defender') {
       state.bacteria.forEach(b => checkEnemyCollision(b, 0.5, 50));
       state.viruses.forEach(v => checkEnemyCollision(v, 0.8, 30));
-      state.cancerCells.forEach(c => checkEnemyCollision(c, 1.0, 100));
     }
 
     // Player vs player: cross-team, size/score-based eating
@@ -457,7 +426,7 @@ export function updateGameState(state, mouseX, mouseY, canvasW, canvasH, dt) {
             radiusGain,
           });
         }
-      } else if (otherPower > playerPower * 1.08 && player.hitCooldown <= 0 && !(player.abilityActive && player.role === 'cancer')) {
+      } else if (otherPower > playerPower * 1.08 && player.hitCooldown <= 0) {
         // Other player is stronger here; local player takes a warning bite while the remote client confirms consumption.
         const scoreLoss = Math.floor(player.score * 0.2);
         const radiusLoss = player.radius * 0.2;
@@ -586,13 +555,6 @@ export function renderGame(ctx, state, canvasW, canvasH) {
     const sy = v.y - camera.y;
     if (sx < -30 || sx > canvasW + 30 || sy < -30 || sy > canvasH + 30) return;
     drawVirus(ctx, sx, sy, v.radius, time);
-  });
-
-  state.cancerCells.forEach(c => {
-    const sx = c.x - camera.x;
-    const sy = c.y - camera.y;
-    if (sx < -80 || sx > canvasW + 80 || sy < -80 || sy > canvasH + 80) return;
-    drawCancerCell(ctx, sx, sy, c.radius, c.pulsePhase);
   });
 
   // Draw other players (AI + remote)
@@ -823,52 +785,9 @@ function drawVirus(ctx, x, y, r, time) {
   ctx.restore();
 }
 
-function drawCancerCell(ctx, x, y, r, phase) {
-  ctx.save();
-  if (_imgs.cancer) {
-    const pulse = 1 + Math.sin(phase) * 0.06;
-    drawImgProp(ctx, _imgs.cancer, x, y, r * 2.2 * pulse);
-    ctx.restore();
-    return;
-  }
-  const pulse = 1 + Math.sin(phase) * 0.08;
-  const pr = r * pulse;
-  // Irregular blob
-  ctx.beginPath();
-  const points = 12;
-  for (let i = 0; i <= points; i++) {
-    const a = (i / points) * Math.PI * 2;
-    const wobble = 0.8 + Math.sin(a * 3 + phase) * 0.2;
-    const px = x + Math.cos(a) * pr * wobble;
-    const py = y + Math.sin(a) * pr * wobble;
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-  const grad = ctx.createRadialGradient(x, y, 0, x, y, pr);
-  grad.addColorStop(0, '#616161');
-  grad.addColorStop(0.5, '#37474F');
-  grad.addColorStop(1, '#1a1a2e');
-  ctx.fillStyle = grad;
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  // Inner dark spots
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2 + phase * 0.3;
-    const d = pr * 0.4;
-    ctx.beginPath();
-    ctx.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, pr * 0.12, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
 function drawPlayerCharacter(ctx, x, y, r, color, time, name, role = 'wbc', isLocal = false, angle = null) {
   ctx.save();
-  const roleImgMap = { wbc: _imgs.wbc, bacteria: _imgs.bacteria, virus: _imgs.virus, cancer: _imgs.cancer };
+  const roleImgMap = { wbc: _imgs.wbc, bacteria: _imgs.bacteria, virus: _imgs.virus };
   const playerImg = isLocal ? (_imgs.playerRole || roleImgMap[role] || _imgs.wbc) : (roleImgMap[role] || _imgs.wbc);
   if (playerImg) {
     // Draw rotated sprite
@@ -965,11 +884,6 @@ export function renderMinimap(ctx, state, mapSize) {
     ctx.fillStyle = '#66BB6A';
     ctx.fillRect(b.x * scale - 1.5, b.y * scale - 1.5, 3, 3);
   });
-  state.cancerCells.forEach(c => {
-    ctx.fillStyle = '#546E7A';
-    ctx.fillRect(c.x * scale - 2, c.y * scale - 2, 4, 4);
-  });
-
   // Other players
   state.otherPlayers.forEach(p => {
     if (p.is_eliminated) return;

@@ -15,7 +15,6 @@ import imgWhiteBloodCell from '@/Images/Whiteblood cell.png';
 import imgRedBloodCell from '@/Images/RedBloodCell.png';
 import imgSingleBacteria from '@/Images/Single_Bacteria_cell.png';
 import imgVirus from '@/Images/Virus.png';
-import imgCancerCell from '@/Images/Cancercell.png';
 import {
   broadcastRoomPlayerState,
   consumeRoomPlayer,
@@ -62,16 +61,6 @@ const FUN_FACTS = {
     'HIV, flu, and COVID-19 are RNA viruses — they mutate faster than DNA viruses.',
     'Viruses are not considered "alive" — they have no metabolism outside a host cell.',
     'The smallest viruses are just 17 nanometers wide — about 6,000× thinner than a hair.',
-  ],
-  cancer: [
-    'Cancer cells ignore the body\'s "stop dividing" signals that normal cells always obey.',
-    'A tumor can grow its own blood vessels to feed itself — a process called angiogenesis.',
-    'Cancer cells travel through the bloodstream to start new tumors in distant organs.',
-    'Normal cells stop dividing after ~50 times. Cancer cells can divide indefinitely.',
-    'Cancer cells reprogram their metabolism to consume glucose 10× faster than normal cells.',
-    'The immune system silently destroys millions of potential cancer cells every day.',
-    'Some cancer cells disguise themselves to avoid being recognized by the immune system.',
-    'Cancer is not one disease — there are over 100 different types affecting different cells.',
   ],
 };
 
@@ -132,24 +121,6 @@ const REVIVAL_QUESTIONS = {
       answer: 2,
     },
   ],
-  cancer: [
-    {
-      q: 'Cancer cells grow and divide in an uncontrolled way.',
-      type: 'tf',
-      answer: true,
-    },
-    {
-      q: 'What is it called when cancer spreads to other parts of the body?',
-      type: 'mc',
-      options: ['Inflammation', 'Angiogenesis', 'Mutation', 'Metastasis'],
-      answer: 3,
-    },
-    {
-      q: 'The immune system can detect and destroy some cancer cells.',
-      type: 'tf',
-      answer: true,
-    },
-  ],
 };
 
 function RevivalQuiz({ question, onAnswer }) {
@@ -181,7 +152,7 @@ function RevivalQuiz({ question, onAnswer }) {
           <p className="mt-4 font-heading text-lg font-bold leading-snug text-gray-900">{question.q}</p>
           <div className="mt-5 grid grid-cols-2 gap-3">
             {options.map((opt, i) => {
-              let cls = 'rounded-xl border-2 px-3 py-3 text-sm font-medium text-left transition-all ';
+              let cls = 'rounded-xl border-2 px-3 py-4 text-sm font-medium text-left transition-all ';
               if (result === null) {
                 cls += 'border-gray-200 hover:border-blue-400 hover:bg-blue-50 cursor-pointer';
               } else if (i === correctIdx) {
@@ -245,7 +216,7 @@ function AbilityButton({ role, cooldown, active, onActivate }) {
         onClick={onActivate}
         disabled={onCooldown}
         style={{ borderColor: active ? cfg.color : undefined }}
-        className={`relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-sm border-2 transition-all
+        className={`relative w-16 h-16 md:w-16 md:h-16 rounded-full flex items-center justify-center backdrop-blur-sm border-2 transition-all
           ${active ? 'border-yellow-300 bg-yellow-400/20 text-yellow-200' :
             onCooldown ? 'border-white/20 bg-black/50 text-white/40 cursor-not-allowed' :
             'border-white/40 bg-black/60 text-white hover:bg-black/80 cursor-pointer'}`}
@@ -331,7 +302,6 @@ export default function GameCanvas({ playerName, players = [], roomId, playerId,
       rbc: imgRedBloodCell,
       bacteria: imgSingleBacteria,
       virus: imgVirus,
-      cancer: imgCancerCell,
     });
   }, []);
 

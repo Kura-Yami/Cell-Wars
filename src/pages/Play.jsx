@@ -9,7 +9,6 @@ import { setPlayerRoleImage } from '@/lib/gameEngine';
 import imgWBC from '@/Images/Whiteblood cell.png';
 import imgBacteria from '@/Images/Single_Bacteria_cell.png';
 import imgVirus from '@/Images/Virus.png';
-import imgCancer from '@/Images/Cancercell.png';
 
 const DEFENDERS = [
   {
@@ -48,17 +47,6 @@ const ATTACKERS = [
     ring: 'ring-purple-400',
     bg: 'bg-purple-50',
   },
-  {
-    id: 'cancer',
-    team: 'attacker',
-    img: imgCancer,
-    name: 'Cancer Cell',
-    role: 'Rogue',
-    desc: 'Grow without limits and become unstoppable.',
-    border: 'border-pink-200',
-    ring: 'ring-pink-400',
-    bg: 'bg-pink-50',
-  },
 ];
 
 const ALL_ROLES = [...DEFENDERS, ...ATTACKERS];
@@ -67,7 +55,6 @@ const ROLE_IMG_MAP = {
   wbc: imgWBC,
   bacteria: imgBacteria,
   virus: imgVirus,
-  cancer: imgCancer,
 };
 
 function RoleCard({ r, selected, onSelect }) {
@@ -199,7 +186,7 @@ export default function Play() {
             <p className="mt-2 text-sm text-muted-foreground">Pick your side in the bloodstream</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {/* Defenders */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">

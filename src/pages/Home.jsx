@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import imgWhiteBloodCell from '@/Images/Whiteblood cell.png';
 import imgRedBloodCell from '@/Images/RedBloodCell.png';
 import gifBacteriadup from '@/Images/Bacteria_Duplication_vid.gif';
-import imgCancerCell from '@/Images/Cancercell.png';
 import imgVirus from '@/Images/Virus.png';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -128,7 +127,7 @@ const gameConnections = [
   { bio: 'Bigger immune cells engulf more', game: 'Larger size = can eat more, but slower' },
 ];
 
-const slideLabels = ['Intro', 'How It Works', 'White Blood Cells', 'Red Blood Cells', 'Bacteria', 'Viruses', 'Cancer Cells', 'Play'];
+const slideLabels = ['Intro', 'How It Works', 'White Blood Cells', 'Red Blood Cells', 'Bacteria', 'Viruses', 'Play'];
 
 function SlideTag({ n, total, label }) {
   return (
@@ -142,7 +141,7 @@ function Slide1() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8 px-6 md:flex-row md:gap-12 md:px-12">
       <div className="max-w-lg">
-        <SlideTag n={1} total={8} label="Overview" />
+        <SlideTag n={1} total={7} label="Overview" />
         <h2 className="font-heading text-4xl font-bold leading-tight text-foreground md:text-5xl">
           Your body is under constant attack.
         </h2>
@@ -164,7 +163,7 @@ function Slide2() {
   return (
     <div className="flex h-full flex-col justify-center gap-6 px-6 md:px-16">
       <div>
-        <SlideTag n={2} total={8} label="Immune Response" />
+        <SlideTag n={2} total={7} label="Immune Response" />
         <h2 className="font-heading text-4xl font-bold text-foreground md:text-5xl">How your immune system works.</h2>
       </div>
       <div className="grid gap-5 md:grid-cols-3">
@@ -186,7 +185,7 @@ function Slide3() {
   return (
     <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
       <div className="shrink-0 text-center md:text-left">
-        <SlideTag n={3} total={8} label="White Blood Cells" />
+        <SlideTag n={3} total={7} label="White Blood Cells" />
         <img src={imgWhiteBloodCell} alt="White blood cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
         <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">Leukocytes · Defenders</p>
         <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">White Blood Cells</h2>
@@ -228,7 +227,7 @@ function Slide4() {
   return (
     <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
       <div className="shrink-0 text-center md:text-left">
-        <SlideTag n={4} total={8} label="Red Blood Cells" />
+        <SlideTag n={4} total={7} label="Red Blood Cells" />
         <img src={imgRedBloodCell} alt="Red blood cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
         <p className="text-xs font-semibold uppercase tracking-wide text-red-500">Erythrocytes · Oxygen Carriers</p>
         <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Red Blood Cells</h2>
@@ -269,7 +268,7 @@ function Slide5() {
   return (
     <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
       <div className="shrink-0 text-center md:text-left">
-        <SlideTag n={5} total={8} label="Bacteria" />
+        <SlideTag n={5} total={7} label="Bacteria" />
         <img src={gifBacteriadup} alt="Bacteria duplication" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0 rounded-lg" />
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Prokaryotes · Living Invaders</p>
         <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Bacteria</h2>
@@ -311,7 +310,7 @@ function Slide6() {
   return (
     <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
       <div className="shrink-0 text-center md:text-left">
-        <SlideTag n={6} total={8} label="Viruses" />
+        <SlideTag n={6} total={7} label="Viruses" />
         <img src={imgVirus} alt="Virus" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
         <p className="text-xs font-semibold uppercase tracking-wide text-purple-600">Non-living · Hijackers</p>
         <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Viruses</h2>
@@ -349,49 +348,10 @@ function Slide6() {
   );
 }
 
-function Slide7() {
-  return (
-    <div className="flex h-full flex-col justify-center gap-5 px-6 md:flex-row md:items-center md:gap-12 md:px-16">
-      <div className="shrink-0 text-center md:text-left">
-        <SlideTag n={7} total={8} label="Cancer Cells" />
-        <img src={imgCancerCell} alt="Cancer cell" className="mx-auto mb-2 h-32 w-32 object-contain md:mx-0" />
-        <p className="text-xs font-semibold uppercase tracking-wide text-pink-600">Mutated Cells · Silent Threat</p>
-        <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">Cancer Cells</h2>
-        <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
-          Your own cells gone rogue. They divide uncontrollably and evade the immune system — sometimes for years before detection.
-        </p>
-      </div>
-
-      <div className="grid flex-1 gap-3">
-        <div className="rounded-xl border border-pink-100 bg-white/80 p-4 shadow-sm">
-          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-pink-600">Key Biology</h3>
-          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
-            <li><strong>Mutated DNA</strong> — damage to genes that control cell division causes uncontrolled growth</li>
-            <li><strong>Ignore stop signals</strong> — normal cells stop dividing when crowded; cancer cells don't</li>
-            <li><strong>Evade immune detection</strong> — cancer cells disguise surface proteins to hide from T cells</li>
-            <li><strong>Angiogenesis</strong> — tumors grow their own blood vessels to feed themselves</li>
-            <li><strong>Metastasis</strong> — advanced cancer breaks off and spreads to other organs via the bloodstream</li>
-          </ul>
-        </div>
-        <div className="rounded-xl border border-pink-100 bg-white/80 p-4 shadow-sm">
-          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-pink-600">Real-World Examples</h3>
-          <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
-            <li><strong>Leukemia</strong> — cancer of white blood cells; bone marrow floods blood with useless cells</li>
-            <li><strong>Lung cancer</strong> — most common cancer worldwide; often triggered by carcinogens in smoke</li>
-            <li><strong>Melanoma</strong> — UV radiation mutates skin cells; spreads rapidly if not caught early</li>
-            <li><strong>Cervical cancer</strong> — caused by HPV virus integrating into and mutating host cell DNA</li>
-            <li><strong>CAR-T therapy</strong> — scientists engineer T cells to hunt specific cancer cell proteins; a new frontier</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Slide9() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6 px-6 text-center md:px-16">
-      <SlideTag n={8} total={8} label="Demo Time" />
+      <SlideTag n={7} total={7} label="Demo Time" />
       <h2 className="font-heading text-4xl font-bold text-foreground md:text-6xl">Time to play.</h2>
       <p className="max-w-xl text-base leading-7 text-muted-foreground">
         Apply what you learned. Collect red blood cells to grow, avoid pathogens until you're strong enough, then fight back.
@@ -436,8 +396,7 @@ function LearnTab() {
     <Slide4 key={3} />,
     <Slide5 key={4} />,
     <Slide6 key={5} />,
-    <Slide7 key={6} />,
-    <Slide9 key={7} />,
+    <Slide9 key={6} />,
   ];
 
   useEffect(() => {
